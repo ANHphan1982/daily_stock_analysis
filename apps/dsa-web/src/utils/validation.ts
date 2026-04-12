@@ -4,7 +4,7 @@ interface ValidationResult {
   normalized: string;
 }
 
-const SUPPORTED_QUERY_CHARACTERS = /^[A-Z0-9.\u3400-\u9FFF\s]+$/;
+const SUPPORTED_QUERY_CHARACTERS = /^[A-Z0-9.:\u3400-\u9FFF\s]+$/;
 
 const STOCK_CODE_PATTERNS = [
   /^\d{6}$/, // A-share 6-digit code
@@ -14,6 +14,7 @@ const STOCK_CODE_PATTERNS = [
   /^HK\d{1,5}$/, // HK-prefixed code, for example HK00700
   /^\d{1,5}\.HK$/, // HK suffix format, for example 00700.HK
   /^[A-Z]{1,5}(?:\.(?:US|[A-Z]))?$/, // Common US ticker format
+  /^VN:[A-Z]{1,10}$/, // Vietnam stock with VN: prefix, e.g. VN:VIC, VN:HPG
 ];
 
 /**
@@ -31,14 +32,14 @@ export const validateStockCode = (value: string): ValidationResult => {
   const normalized = value.trim().toUpperCase();
 
   if (!normalized) {
-    return { valid: false, message: '请输入股票代码', normalized };
+    return { valid: false, message: 'Vui long nhap ma co phieu', normalized };
   }
 
   const valid = looksLikeStockCode(normalized);
 
   return {
     valid,
-    message: valid ? undefined : '股票代码格式不正确',
+    message: valid ? undefined : 'Dinh dang ma co phieu khong dung',
     normalized,
   };
 };

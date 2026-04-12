@@ -106,7 +106,9 @@ def get_history_list(
                 report_type=item.get("report_type"),
                 sentiment_score=item.get("sentiment_score"),
                 operation_advice=item.get("operation_advice"),
-                created_at=item.get("created_at")
+                created_at=item.get("created_at"),
+                current_price=item.get("current_price"),
+                change_pct=item.get("change_pct"),
             )
             for item in result.get("items", [])
         ]
@@ -231,12 +233,30 @@ def get_history_detail(
             current_price = realtime.get("price")
             change_pct = realtime.get("change_pct") or realtime.get("change_60d")
             
-            # 也尝试从 realtime_quote_raw 获取
+            # 也尝试从 realtime_quote_raw 获取（非 Agent 路径）
             if current_price is None:
                 realtime_quote_raw = context_snapshot.get("realtime_quote_raw") or {}
                 current_price = realtime_quote_raw.get("price")
                 change_pct = change_pct or realtime_quote_raw.get("change_pct") or realtime_quote_raw.get("pct_chg")
-        
+
+            # 也尝试从 realtime_quote 获取（Agent 路径）
+            if current_price is None:
+                realtime_quote = context_snapshot.get("realtime_quote") or {}
+                current_price = realtime_quote.get("price")
+                change_pct = change_pct or realtime_quote.get("change_pct")
+
+        # Fallback: read from raw_result metadata (stored by pipeline)
+        if current_price is None:
+            import json as _json
+            raw_result_text = result.get("raw_result")
+            if raw_result_text:
+                try:
+                    rr = _json.loads(raw_result_text) if isinstance(raw_result_text, str) else raw_result_text
+                    current_price = rr.get("current_price")
+                    change_pct = change_pct or rr.get("change_pct")
+                except Exception:
+                    pass
+
         raw_result = result.get("raw_result")
         if not isinstance(raw_result, dict):
             raw_result = {}

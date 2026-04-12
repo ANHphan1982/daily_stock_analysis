@@ -2,45 +2,45 @@
 # MA5 crosses above MA10 (or MA10 above MA20) with volume confirmation.
 
 name: ma_golden_cross
-display_name: 均线金叉
-description: 检测均线金叉配合量能确认信号，经典的趋势反转/延续信号。
+display_name: MA giao cắt tăng (Golden Cross)
+description: Phát hiện tín hiệu giao cắt tăng MA kết hợp xác nhận khối lượng, tín hiệu đảo chiều/tiếp diễn xu hướng kinh điển.
 category: trend
 core_rules: [1, 2, 3]
 required_tools:
   - get_daily_history
   - analyze_trend
-aliases: [均线金叉, 金叉]
+aliases: [MA giao cắt tăng, giao cắt tăng]
 default_priority: 20
 market_regimes: [trending_up]
 
 instructions: |
-  **均线金叉（MA Golden Cross Strategy）**
+  **MA giao cắt tăng（MA Golden Cross Strategy）**
 
-  信号判定标准：
+  Tiêu chí xác định tín hiệu:
 
-  1. **金叉检测**（关联理念2：趋势交易）：
-     - 使用 `analyze_trend` 检查均线排列和 MACD 状态。
-     - 主信号：MA5 在最近 3 个交易日内上穿 MA10。
-     - 强信号：MA10 上穿 MA20（更慢但更可靠）。
-     - 检查 MACD 状态是否为金叉或零轴上方金叉。
+  1. **Phát hiện giao cắt tăng**（liên quan lý niệm 2: giao dịch xu hướng）:
+     - Sử dụng `analyze_trend` kiểm tra sắp xếp đường MA và trạng thái MACD.
+     - Tín hiệu chính: MA5 vượt lên trên MA10 trong 3 phiên giao dịch gần nhất.
+     - Tín hiệu mạnh: MA10 vượt MA20（chậm hơn nhưng đáng tin cậy hơn）.
+     - Kiểm tra trạng thái MACD có phải giao cắt tăng hoặc giao cắt tăng trên trục 0 không.
 
-  2. **量能确认**（关联理念3：效率优先）：
-     - 金叉日成交量应高于 5 日均量。
-     - 使用 `get_daily_history` 验证。
-     - 金叉日量比 > 1.2 为积极信号。
+  2. **Xác nhận khối lượng**（liên quan lý niệm 3: ưu tiên hiệu quả）:
+     - Khối lượng ngày giao cắt phải cao hơn khối lượng trung bình 5 ngày.
+     - Sử dụng `get_daily_history` để xác nhận.
+     - Tỷ lệ khối lượng ngày giao cắt > 1.2 là tín hiệu tích cực.
 
-  3. **趋势背景**：
-     - 盘整后金叉：最强信号。
-     - 上升趋势中金叉：延续信号。
-     - 深度下跌中金叉：弱信号，需更多确认。
+  3. **Bối cảnh xu hướng**:
+     - Giao cắt tăng sau đi ngang/tích lũy: tín hiệu mạnh nhất.
+     - Giao cắt tăng trong xu hướng tăng: tín hiệu tiếp diễn.
+     - Giao cắt tăng trong đà giảm sâu: tín hiệu yếu, cần xác nhận thêm.
 
-  4. **价格位置**（关联理念1：严进策略）：
-     - 价格应在交叉均线附近或上方。
-     - 乖离率 < 5% — 避免追高延迟入场。
+  4. **Vị thế giá**（liên quan lý niệm 1: chiến lược vào lệnh chặt chẽ）:
+     - Giá nên ở gần hoặc trên đường MA giao cắt.
+     - Độ lệch < 5% — tránh vào lệnh muộn do đuổi theo đà tăng.
 
-  评分调整：
-  - MA5 × MA10 金叉配合量能：sentiment_score +10
-  - MA10 × MA20 金叉：sentiment_score +8
-  - MACD 零轴上方金叉：额外 +5
-  - 在 `ma_analysis` 和 `buy_reason` 中注明"均线金叉"。
-  - 理想买点设在交叉均线水平附近。
+  Điều chỉnh điểm:
+  - MA5 × MA10 giao cắt tăng kết hợp khối lượng: sentiment_score +10
+  - MA10 × MA20 giao cắt tăng: sentiment_score +8
+  - MACD giao cắt tăng trên trục 0: thêm +5
+  - Ghi chú "MA giao cắt tăng" trong `ma_analysis` và `buy_reason`.
+  - Điểm mua lý tưởng đặt gần mức đường MA giao cắt.

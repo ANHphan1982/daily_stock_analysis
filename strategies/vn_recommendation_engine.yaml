@@ -1,0 +1,226 @@
+# VN Recommendation Engine / Bộ máy khuyến nghị cổ phiếu VN
+# Receives candidates from vn_market_scan, applies a 100-point composite scoring model,
+# and produces structured buy/watch/skip recommendations with entry, stop-loss and target levels.
+
+name: vn_recommendation_engine
+display_name: Bộ máy khuyến nghị cổ phiếu VN
+description: >
+  Chấm điểm tổng hợp 100 điểm cho từng ứng viên từ vn_market_scan theo 5 nhóm tiêu chí:
+  xu hướng (25đ), khối lượng (25đ), momentum (20đ), ngành (15đ), rủi ro (15đ).
+  Xuất danh sách Mua / Theo dõi / Bỏ qua kèm điểm vào, dừng lỗ và mục tiêu lợi nhuận.
+category: framework
+core_rules: [1, 2, 3, 5, 6, 7]
+required_tools:
+  - get_daily_history
+  - analyze_trend
+  - get_realtime_quote
+  - get_sector_rankings
+  - search_stock_news
+aliases: [khuyến nghị, bộ máy khuyến nghị, chấm điểm cổ phiếu, xếp hạng cổ phiếu]
+default_active: true
+default_router: false
+default_priority: 6
+market_regimes: [trending_up, sideways, sector_hot, trending_down]
+
+instructions: |
+  **Bộ máy khuyến nghị cổ phiếu Việt Nam (VN Recommendation Engine)**
+
+  ## Đầu vào
+  Nhận danh sách ứng viên từ chiến lược `vn_market_scan` (mỗi mã có `base_signal_score`).
+  Với mỗi mã, thực hiện phân tích 5 nhóm tiêu chí để tính điểm tổng hợp.
+
+  ---
+
+  ## Bảng điểm tổng hợp (100 điểm)
+
+  ### Nhóm A — Xu hướng (25 điểm)
+
+  Sử dụng `analyze_trend` và `get_daily_history`:
+
+  | Điều kiện | Điểm |
+  |-----------|------|
+  | MA5 > MA10 > MA20 > MA60 (sắp xếp tăng hoàn hảo) | +25 |
+  | MA5 > MA10 > MA20 (sắp xếp tăng cơ bản) | +18 |
+  | MA5 > MA10, MA20 đi ngang (xu hướng yếu) | +10 |
+  | Giá dưới MA20 nhưng đang hồi về kiểm tra lại | +5 |
+  | MA20 dốc lên (bonus) | +3 |
+  | Xu hướng tăng > 20 phiên liên tiếp (bonus) | +2 |
+  | Giá phá MA20 xuống dưới hoặc MA5 < MA10 < MA20 | -10 |
+
+  Tối đa nhóm A: 25 điểm (không cộng quá mức trần)
+
+  ---
+
+  ### Nhóm B — Khối lượng (25 điểm)
+
+  Sử dụng `get_realtime_quote` (volume_ratio) và `get_daily_history`:
+
+  | Điều kiện | Điểm |
+  |-----------|------|
+  | Phá vỡ tăng khối lượng: volume_ratio > 2.0 kèm giá vượt kháng cự | +25 |
+  | Khối lượng tăng tốt: volume_ratio 1.5–2.0 kèm tăng giá | +18 |
+  | Khối lượng xác nhận: volume_ratio 1.2–1.5 kèm tăng giá | +12 |
+  | Hồi về giảm khối lượng: volume_ratio < 0.7 (điều chỉnh lành mạnh) | +15 |
+  | Khối lượng đáy cực thấp (< 50% TB60 ngày) — đặc trưng tích lũy | +10 |
+  | Khối lượng bình thường (0.7–1.2) | +8 |
+  | Tăng giá kèm giảm khối lượng (divergence, cảnh báo) | -5 |
+  | Bán tháo khối lượng lớn: volume_ratio > 3 kèm giảm giá mạnh | -15 |
+
+  Tối đa nhóm B: 25 điểm
+
+  ---
+
+  ### Nhóm C — Momentum (20 điểm)
+
+  Sử dụng `analyze_trend` (MACD, RSI, giá so với MA):
+
+  | Điều kiện | Điểm |
+  |-----------|------|
+  | MACD giao cắt tăng trên đường 0 (tín hiệu mạnh nhất) | +8 |
+  | MACD giao cắt tăng dưới đường 0 (tín hiệu trung bình) | +5 |
+  | MACD histogram đang tăng dần (momentum tích cực) | +3 |
+  | RSI(14) trong vùng 40–65 (vùng tốt nhất, không overbought) | +5 |
+  | RSI(14) trong vùng 65–70 (tiến vào overbought, thận trọng) | +2 |
+  | RSI(14) < 40 đang hồi phục (cơ hội reversal) | +3 |
+  | RSI(14) > 70 (quá mua, rủi ro cao) | -5 |
+  | Nến K ngày hôm nay: nến tăng thân dài (bullish marubozu) | +4 |
+  | Nến K ngày hôm nay: nến búa / shooting star đảo chiều | +2 |
+  | MACD phân kỳ đỉnh (bearish divergence) | -8 |
+
+  Tối đa nhóm C: 20 điểm
+
+  ---
+
+  ### Nhóm D — Ngành & Thị trường (15 điểm)
+
+  Sử dụng `get_sector_rankings`:
+
+  | Điều kiện | Điểm |
+  |-----------|------|
+  | Ngành nằm top 1–3 tăng hôm nay (ngành nóng) | +15 |
+  | Ngành nằm top 4–6 tăng hôm nay (ngành tích cực) | +10 |
+  | Ngành đi ngang hoặc không nổi bật | +5 |
+  | Mã tăng mạnh hơn ngành > 2% (relative strength tốt) | +3 bonus |
+  | Ngành đang giảm (trong top giảm hôm nay) | -8 |
+  | Thị trường tổng thể BEAR (VN-Index < MA20) | -5 (áp dụng cho toàn bộ) |
+
+  Tối đa nhóm D: 15 điểm (+3 bonus nếu relative strength tốt)
+
+  ---
+
+  ### Nhóm E — Rủi ro & Điểm vào (15 điểm)
+
+  Sử dụng `search_stock_news` và `analyze_trend` (support/resistance):
+
+  | Điều kiện | Điểm |
+  |-----------|------|
+  | Không có tin xấu, cơ bản ổn định | +5 |
+  | Có catalyst tích cực (kết quả kinh doanh tốt, hợp đồng mới, chính sách hỗ trợ) | +5 bonus |
+  | R/R ratio ≥ 3:1 (mục tiêu / dừng lỗ) | +5 |
+  | R/R ratio 2:1–3:1 | +3 |
+  | Điểm vào gần hỗ trợ mạnh (MA20 hoặc đáy cấu trúc) | +5 |
+  | Độ lệch từ MA5: 0–3% (điểm vào tối ưu, không đuổi giá) | +3 bonus |
+  | Tin xấu nhẹ (kết quả kinh doanh dưới kỳ vọng nhưng không đột biến) | -5 |
+  | Tin xấu trọng yếu (thua lỗ, điều tra, vi phạm) | **VETO: loại ngay** |
+  | R/R ratio < 1.5:1 (rủi ro cao, không đáng) | -8 |
+  | Giá đã tăng > 30% trong 20 phiên (đuổi theo đà tăng nguy hiểm) | -10 |
+
+  Tối đa nhóm E: 15 điểm
+
+  ---
+
+  ## Ngưỡng phân loại khuyến nghị
+
+  ```
+  Tổng điểm ≥ 75  → 🟢 MUA      (ưu tiên cao, hành động ngay)
+  Tổng điểm 60–74 → 🟡 THEO DÕI (chờ thêm xác nhận 1–2 phiên)
+  Tổng điểm < 60  → ⚪ BỎ QUA   (chưa đủ điều kiện)
+  Có VETO         → 🔴 LOẠI     (tin xấu trọng yếu — cấm mua bất kể điểm số)
+  ```
+
+  ---
+
+  ## Tính toán điểm vào, dừng lỗ, mục tiêu
+
+  Sau khi xác định phân loại, tính toán các mức giá:
+
+  ### Điểm vào (Entry Zone)
+  - **Lý tưởng nhất**: Giá tiếp cận MA5 (±1.5%) hoặc vùng phá vỡ vừa xảy ra
+  - **Chấp nhận được**: Giá dưới kháng cự + 3%, độ lệch MA5 < 8%
+  - **Không nên mua**: Giá đã vượt kháng cự > 5% (quá muộn)
+
+  ### Dừng lỗ (Stop Loss) — bắt buộc
+  Chọn mức **gần nhất** trong các mức sau:
+  - Dưới MA20 × 1.03 (đệm 3%)
+  - Dưới đáy cấu trúc gần nhất × 1.02
+  - Tối đa dừng lỗ: 7% từ điểm vào (không để lỗ quá 7%)
+
+  ### Mục tiêu (Take Profit)
+  - **Mục tiêu 1 (ngắn hạn)**: Kháng cự gần nhất, thường 8–12% từ điểm vào
+  - **Mục tiêu 2 (trung hạn)**: Kháng cự tiếp theo hoặc đỉnh lịch sử, 15–25% từ điểm vào
+  - Khi đạt Mục tiêu 1: chốt lời 50% vị thế, nâng dừng lỗ lên hòa vốn
+
+  ### R/R Ratio
+  ```
+  R/R = (Mục tiêu 1 - Điểm vào) / (Điểm vào - Dừng lỗ)
+  Yêu cầu tối thiểu: R/R ≥ 2.0
+  Lý tưởng: R/R ≥ 3.0
+  ```
+
+  ---
+
+  ## Quy tắc quản lý danh mục
+
+  | Quy tắc | Nội dung |
+  |---------|----------|
+  | Phân bổ tối đa | 1 mã ≤ 10% tổng danh mục |
+  | Tập trung ngành | ≤ 3 mã cùng 1 ngành trong danh mục |
+  | Số lượng | Tối đa 10 mã khuyến nghị MUA/ngày |
+  | Thị trường BEAR | Giảm tất cả vị thế xuống còn 30% |
+  | Dừng lỗ cứng | Không di chuyển xuống thấp hơn sau khi đặt |
+
+  ---
+
+  ## Format đầu ra chuẩn (cho mỗi mã được khuyến nghị)
+
+  ```
+  📊 [MÃ CK] [TÊN CỔ PHIẾU] — Điểm: XX/100  [🟢 MUA / 🟡 THEO DÕI]
+  ─────────────────────────────────────────────────────────
+  Tín hiệu kích hoạt : [tên tín hiệu từ vn_market_scan]
+  Giá tham chiếu    : XXX,XXX VNĐ  (±X% hôm nay)
+  Vùng mua hợp lý   : XXX,XXX – XXX,XXX VNĐ
+  Mục tiêu 1 (ngắn) : XXX,XXX VNĐ (+X%)
+  Mục tiêu 2 (trung): XXX,XXX VNĐ (+X%)
+  Dừng lỗ           : XXX,XXX VNĐ (-X%)
+  R/R Ratio         : 1:X.X
+  Ngành             : [Tên ngành] — Hạng #X hôm nay
+  ─────────────────────────────────────────────────────────
+  Lý do mua         : [Mô tả ngắn gọn tín hiệu kỹ thuật cụ thể]
+  Điểm chi tiết     : XU HƯỚNG:X | KHỐI LƯỢNG:X | MOMENTUM:X | NGÀNH:X | RỦI RO:X
+  Cảnh báo          : [Rủi ro cần lưu ý nếu có]
+  ```
+
+  ---
+
+  ## Tổng hợp bảng khuyến nghị ngày
+
+  Sau khi phân tích tất cả ứng viên, xuất:
+
+  **🟢 DANH SÁCH MUA (ưu tiên theo điểm giảm dần):**
+  | # | Mã | Điểm | Tín hiệu | Giá vào | Dừng lỗ | Mục tiêu 1 | R/R |
+  |---|-----|------|----------|---------|---------|-----------|-----|
+
+  **🟡 DANH SÁCH THEO DÕI:**
+  | # | Mã | Điểm | Điều kiện cần thêm để nâng lên MUA |
+  |---|-----|------|-------------------------------------|
+
+  **📌 GHI CHÚ THỊ TRƯỜNG:**
+  - Trạng thái: [BULL/NEUTRAL/BEAR/SECTOR_HOT]
+  - Chiến lược tổng thể ngày hôm nay: [một câu mô tả cách tiếp cận]
+  - Ngành trọng tâm: [top ngành đang dẫn dắt]
+  - Mức rủi ro tổng thể: [Thấp / Trung bình / Cao]
+
+  Điều chỉnh điểm sentiment_score tổng hợp:
+  - Khuyến nghị MUA (≥75đ): sentiment_score = điểm tổng / 100 × 95
+  - Khuyến nghị THEO DÕI (60–74đ): sentiment_score = điểm tổng / 100 × 80
+  - Ghi "vn_recommendation_engine" vào buy_reason

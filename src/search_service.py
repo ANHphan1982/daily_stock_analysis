@@ -607,6 +607,322 @@ class SerpAPISearchProvider(BaseSearchProvider):
             return '未知来源'
 
 
+class VnNewsProvider:
+    """
+    Dedicated news provider for Vietnam stocks (VN: prefix).
+    Uses vnstock company.news() which pulls from VCI/FiinGroup — no API key required.
+    Also scrapes CafeF and Vietstock as supplementary sources.
+    """
+
+    name = "VnNews"
+
+    @property
+    def is_available(self) -> bool:
+        try:
+            import vnstock  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    @staticmethod
+    def _strip_vn_prefix(code: str) -> str:
+        code = code.strip().upper()
+        return code[3:] if code.startswith("VN:") else code
+
+    def fetch_vnstock_news(self, symbol: str, max_results: int = 10) -> List[SearchResult]:
+        """Fetch news via vnstock company.news() (VCI/FiinGroup source)."""
+        results: List[SearchResult] = []
+        try:
+            from vnstock import Vnstock  # type: ignore
+            components = Vnstock(symbol=symbol, source="VCI").stock(symbol=symbol, source="VCI")
+            df = components.company.news()
+            if df is None or df.empty:
+                return results
+            for _, row in df.head(max_results).iterrows():
+                title = str(row.get("news_title") or "").strip()
+                if not title:
+                    continue
+                url = str(row.get("news_source_link") or "").strip()
+                snippet = str(row.get("news_short_content") or row.get("news_sub_title") or "").strip()
+                # Remove HTML tags from snippet
+                import re as _re
+                snippet = _re.sub(r"<[^>]+>", " ", snippet).strip()
+                snippet = _re.sub(r"\s+", " ", snippet)[:500]
+                # Parse date from unix ms timestamp
+                pub_ts = row.get("public_date")
+                published_date: Optional[str] = None
+                if pub_ts:
+                    try:
+                        ts_sec = int(pub_ts) / 1000
+                        published_date = datetime.fromtimestamp(ts_sec, tz=timezone.utc).strftime("%Y-%m-%d")
+                    except Exception:
+                        pass
+                source = "cafef.vn"
+                if url:
+                    try:
+                        from urllib.parse import urlparse as _up
+                        source = _up(url).netloc.replace("www.", "") or "cafef.vn"
+                    except Exception:
+                        pass
+                results.append(SearchResult(
+                    title=title,
+                    snippet=snippet,
+                    url=url or f"https://cafef.vn/tim-kiem.chn?keywords={symbol}",
+                    source=source,
+                    published_date=published_date,
+                ))
+        except Exception as exc:
+            logger.warning(f"[VnNews] vnstock news fetch failed for {symbol}: {exc}")
+        return results
+
+    def fetch_kbs_news(self, symbol: str, max_results: int = 5) -> List[SearchResult]:
+        """Fetch news via vnstock KBS source (Vietstock articles)."""
+        results: List[SearchResult] = []
+        try:
+            from vnstock import Vnstock  # type: ignore
+            components = Vnstock(symbol=symbol, source="KBS").stock(symbol=symbol, source="KBS")
+            df = components.company.news()
+            if df is None or df.empty:
+                return results
+            for _, row in df.head(max_results).iterrows():
+                title = str(row.get("title") or "").strip()
+                if not title:
+                    continue
+                snippet = str(row.get("head") or "").strip()
+                # Parse ISO datetime: 2026-03-02T19:37:34.023
+                publish_time = row.get("publish_time") or ""
+                published_date: Optional[str] = None
+                if publish_time:
+                    try:
+                        published_date = str(publish_time)[:10]
+                    except Exception:
+                        pass
+                # Build full URL
+                url_path = str(row.get("url") or "").strip()
+                if url_path and not url_path.startswith("http"):
+                    url = "https://finance.vietstock.vn" + url_path
+                else:
+                    url = url_path or f"https://vietstock.vn/tim-kiem.htm?q={symbol}"
+                results.append(SearchResult(
+                    title=title,
+                    snippet=snippet[:400],
+                    url=url,
+                    source="vietstock.vn",
+                    published_date=published_date,
+                ))
+        except Exception as exc:
+            logger.debug(f"[VnNews] KBS/Vietstock news fetch failed for {symbol}: {exc}")
+        return results
+
+    def fetch_cafef_news(self, symbol: str, max_results: int = 5) -> List[SearchResult]:
+        """Scrape news from CafeF search page."""
+        results: List[SearchResult] = []
+        try:
+            from bs4 import BeautifulSoup  # type: ignore
+            import re as _re
+            url = f"https://cafef.vn/tim-kiem.chn?keywords={symbol}"
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                ),
+                "Accept-Language": "vi-VN,vi;q=0.9",
+                "Referer": "https://cafef.vn/",
+            }
+            resp = requests.get(url, headers=headers, timeout=8)
+            if resp.status_code != 200:
+                return results
+            soup = BeautifulSoup(resp.text, "lxml")
+            # CafeF search: news articles have links containing /20 in href (year-based URLs)
+            seen: set = set()
+            for a in soup.find_all("a", href=True):
+                href = a["href"]
+                if "/20" not in href:
+                    continue
+                if not href.startswith("http"):
+                    href = "https://cafef.vn" + href
+                if href in seen:
+                    continue
+                seen.add(href)
+                title = a.get_text(strip=True)
+                if len(title) < 20:
+                    continue
+                # Try to find sibling date text
+                parent = a.find_parent()
+                date_str: Optional[str] = None
+                if parent:
+                    date_match = _re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", parent.get_text())
+                    if date_match:
+                        d, m, y = date_match.groups()
+                        date_str = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+                results.append(SearchResult(
+                    title=title,
+                    snippet="",
+                    url=href,
+                    source="cafef.vn",
+                    published_date=date_str,
+                ))
+                if len(results) >= max_results:
+                    break
+        except Exception as exc:
+            logger.warning(f"[VnNews] CafeF scrape failed for {symbol}: {exc}")
+        return results
+
+    def fetch_tinnhanh_news(self, symbol: str, max_results: int = 5) -> List[SearchResult]:
+        """Scrape news from tinnhanhchungkhoan.vn (Tin nhanh chứng khoán)."""
+        results: List[SearchResult] = []
+        try:
+            from bs4 import BeautifulSoup  # type: ignore
+            import re as _re
+            url = f"https://tinnhanhchungkhoan.vn/tim-kiem/?q={symbol}"
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                ),
+                "Accept-Language": "vi-VN,vi;q=0.9",
+                "Referer": "https://tinnhanhchungkhoan.vn/",
+            }
+            resp = requests.get(url, headers=headers, timeout=8)
+            if resp.status_code != 200:
+                return results
+            soup = BeautifulSoup(resp.text, "lxml")
+            seen: set = set()
+            # tinnhanhchungkhoan.vn uses article links with /20 in URL path
+            for a in soup.find_all("a", href=True):
+                href = a["href"]
+                if "/20" not in href:
+                    continue
+                if not href.startswith("http"):
+                    href = "https://tinnhanhchungkhoan.vn" + href
+                if href in seen or "tinnhanhchungkhoan.vn" not in href:
+                    continue
+                seen.add(href)
+                title = a.get_text(strip=True)
+                if len(title) < 20:
+                    continue
+                parent = a.find_parent()
+                date_str: Optional[str] = None
+                if parent:
+                    date_match = _re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", parent.get_text())
+                    if date_match:
+                        d, m, y = date_match.groups()
+                        date_str = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+                results.append(SearchResult(
+                    title=title,
+                    snippet="",
+                    url=href,
+                    source="tinnhanhchungkhoan.vn",
+                    published_date=date_str,
+                ))
+                if len(results) >= max_results:
+                    break
+        except Exception as exc:
+            logger.warning(f"[VnNews] tinnhanhchungkhoan.vn scrape failed for {symbol}: {exc}")
+        return results
+
+    def fetch_vneconomy_news(self, symbol: str, max_results: int = 5) -> List[SearchResult]:
+        """Scrape news from vneconomy.vn (VnEconomy - Kinh tế Việt Nam)."""
+        results: List[SearchResult] = []
+        try:
+            from bs4 import BeautifulSoup  # type: ignore
+            import re as _re
+            url = f"https://vneconomy.vn/tim-kiem.htm?keyword={symbol}&cat=chung-khoan"
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                ),
+                "Accept-Language": "vi-VN,vi;q=0.9",
+                "Referer": "https://vneconomy.vn/",
+            }
+            resp = requests.get(url, headers=headers, timeout=8)
+            if resp.status_code != 200:
+                return results
+            soup = BeautifulSoup(resp.text, "lxml")
+            seen: set = set()
+            for a in soup.find_all("a", href=True):
+                href = a["href"]
+                if not href.startswith("http"):
+                    href = "https://vneconomy.vn" + href
+                if href in seen or "vneconomy.vn" not in href:
+                    continue
+                if "/20" not in href and "-20" not in href:
+                    continue
+                seen.add(href)
+                title = a.get_text(strip=True)
+                if len(title) < 20:
+                    continue
+                parent = a.find_parent()
+                date_str: Optional[str] = None
+                if parent:
+                    date_match = _re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", parent.get_text())
+                    if date_match:
+                        d, m, y = date_match.groups()
+                        date_str = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+                results.append(SearchResult(
+                    title=title,
+                    snippet="",
+                    url=href,
+                    source="vneconomy.vn",
+                    published_date=date_str,
+                ))
+                if len(results) >= max_results:
+                    break
+        except Exception as exc:
+            logger.warning(f"[VnNews] vneconomy.vn scrape failed for {symbol}: {exc}")
+        return results
+
+    def search(self, symbol: str, max_results: int = 10) -> SearchResponse:
+        """Fetch VN stock news: VCI → KBS/Vietstock → CafeF → TinNhanh → VnEconomy."""
+        start = time.time()
+        all_results: List[SearchResult] = []
+        seen_titles: set = set()
+
+        def _add(items: List[SearchResult]) -> None:
+            for r in items:
+                key = r.title.lower()[:60]
+                if key not in seen_titles:
+                    seen_titles.add(key)
+                    all_results.append(r)
+
+        # Source 1: vnstock/VCI — FiinGroup structured data
+        _add(self.fetch_vnstock_news(symbol, max_results=max_results))
+
+        # Source 2: KBS/Vietstock — additional analyst articles
+        if len(all_results) < max_results:
+            _add(self.fetch_kbs_news(symbol, max_results=max_results - len(all_results)))
+
+        # Source 3: CafeF — supplementary scraping
+        if len(all_results) < max_results:
+            _add(self.fetch_cafef_news(symbol, max_results=max_results - len(all_results)))
+
+        # Source 4: Tin nhanh chứng khoán — supplementary scraping
+        if len(all_results) < max_results:
+            _add(self.fetch_tinnhanh_news(symbol, max_results=max_results - len(all_results)))
+
+        # Source 5: VnEconomy — supplementary scraping
+        if len(all_results) < max_results:
+            _add(self.fetch_vneconomy_news(symbol, max_results=max_results - len(all_results)))
+
+        # Sort by date descending (most recent first)
+        all_results.sort(
+            key=lambda r: r.published_date or "0000-00-00",
+            reverse=True,
+        )
+
+        return SearchResponse(
+            query=f"{symbol} tin tức cổ phiếu",
+            results=all_results[:max_results],
+            provider=self.name,
+            success=bool(all_results),
+            search_time=time.time() - start,
+        )
+
+
 class BochaSearchProvider(BaseSearchProvider):
     """
     博查搜索引擎
@@ -1664,6 +1980,7 @@ class SearchService:
             news_strategy_profile: 新闻窗口策略档位（ultra_short/short/medium/long）
         """
         self._providers: List[BaseSearchProvider] = []
+        self._vn_provider = VnNewsProvider()
         self.news_max_age_days = max(1, news_max_age_days)
         raw_profile = (news_strategy_profile or "short").strip().lower()
         self.news_strategy_profile = normalize_news_strategy_profile(news_strategy_profile)
@@ -1734,6 +2051,11 @@ class SearchService:
             self.news_window_days,
         )
     
+    @staticmethod
+    def _is_vn_stock(stock_code: str) -> bool:
+        """Check if the stock code is a Vietnam stock (VN: prefix)."""
+        return stock_code.strip().upper().startswith("VN:")
+
     @staticmethod
     def _is_foreign_stock(stock_code: str) -> bool:
         """判断是否为港股或美股"""
@@ -2089,6 +2411,16 @@ class SearchService:
         Returns:
             SearchResponse 对象
         """
+        # Vietnam stocks: use dedicated VnNewsProvider (vnstock + CafeF scraper)
+        if self._is_vn_stock(stock_code) and self._vn_provider.is_available:
+            symbol = VnNewsProvider._strip_vn_prefix(stock_code)
+            logger.info(f"[VnNews] Fetching Vietnam news for {symbol} ({stock_name})")
+            response = self._vn_provider.search(symbol, max_results=max_results)
+            if response.success and response.results:
+                logger.info(f"[VnNews] Got {len(response.results)} results for {symbol}")
+                return response
+            logger.warning(f"[VnNews] No results for {symbol}, falling back to general search")
+
         # 策略窗口优先：ultra_short/short/medium/long = 1/3/7/30 天，
         # 并统一受 NEWS_MAX_AGE_DAYS 上限约束。
         search_days = self._effective_news_window_days()
@@ -2256,8 +2588,59 @@ class SearchService:
         results = {}
         search_count = 0
 
+        is_vn = self._is_vn_stock(stock_code)
         is_foreign = self._is_foreign_stock(stock_code)
         is_index_etf = self.is_index_or_etf(stock_code, stock_name)
+
+        if is_vn:
+            # Vietnam stock: use VnNewsProvider for primary news, then search for company intel
+            symbol = VnNewsProvider._strip_vn_prefix(stock_code)
+            if self._vn_provider.is_available:
+                vn_response = self._vn_provider.search(symbol, max_results=4)
+                if vn_response.success and vn_response.results:
+                    results['latest_news'] = vn_response
+                    search_count += 1
+            # Supplement with general search for analysis/risk if providers available
+            if search_count < max_searches and self._providers:
+                search_dimensions = [
+                    {
+                        'name': 'market_analysis',
+                        'query': f"{stock_name} {symbol} phân tích cổ phiếu khuyến nghị",
+                        'desc': 'Phân tích',
+                        'tavily_topic': None,
+                        'strict_freshness': False,
+                    },
+                    {
+                        'name': 'risk_check',
+                        'query': f"{stock_name} {symbol} rủi ro cảnh báo vi phạm",
+                        'desc': 'Rủi ro',
+                        'tavily_topic': 'news',
+                        'strict_freshness': True,
+                    },
+                ]
+                search_days = self._effective_news_window_days()
+                target_per_dimension = self._provider_request_size(5)
+                for dim in search_dimensions:
+                    if search_count >= max_searches:
+                        break
+                    available_providers = [p for p in self._providers if p.is_available]
+                    if not available_providers:
+                        break
+                    provider = available_providers[search_count % len(available_providers)]
+                    search_kwargs: Dict[str, Any] = {}
+                    if isinstance(provider, TavilySearchProvider) and dim.get('tavily_topic'):
+                        search_kwargs["topic"] = dim['tavily_topic']
+                    response = provider.search(dim['query'], target_per_dimension, days=search_days, **search_kwargs)
+                    filtered = self._filter_news_response(
+                        response,
+                        search_days=search_days if dim.get('strict_freshness') else search_days * 7,
+                        max_results=5,
+                        log_scope=f"{stock_code}:{provider.name}:{dim['name']}",
+                    )
+                    if filtered.success and filtered.results:
+                        results[dim['name']] = filtered
+                    search_count += 1
+            return results
 
         if is_foreign:
             search_dimensions = [

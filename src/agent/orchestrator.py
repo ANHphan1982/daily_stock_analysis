@@ -134,7 +134,7 @@ class AgentOrchestrator:
             if parse_dashboard and dashboard is not None:
                 dashboard = self._mark_partial_dashboard(
                     dashboard,
-                    note="多 Agent 超时，以下结论基于已完成阶段自动降级生成。",
+                    note="Đa Agent hết thời gian, kết luận sau được tạo tự động từ các giai đoạn đã hoàn thành.",
                 )
                 ctx.set_data("final_dashboard", dashboard)
                 content = json.dumps(dashboard, ensure_ascii=False, indent=2)
@@ -793,7 +793,11 @@ class AgentOrchestrator:
         if not isinstance(sniper, dict):
             sniper = {}
         else:
-            sniper = dict(sniper)
+            # Sanitize: strip any long strings (strategy template text leaked from LLM prompts)
+            sniper = {
+                k: (v if not isinstance(v, str) or len(v) <= 60 else None)
+                for k, v in sniper.items()
+            }
 
         sniper.setdefault(
             "ideal_buy",
@@ -803,14 +807,22 @@ class AgentOrchestrator:
             or key_levels.get("immediate_support")
             or "N/A",
         )
-        sniper.setdefault(
-            "secondary_buy",
+        # secondary_buy must be lower than ideal_buy (for averaging down)
+        _secondary_fallback = (
             key_levels.get("secondary_buy")
+            or key_levels.get("strong_support")
             or key_levels.get("support")
             or key_levels.get("immediate_support")
-            or sniper.get("ideal_buy")
-            or "N/A",
         )
+        # If fallback equals ideal_buy (same support level), derive a lower level
+        _ideal = sniper.get("ideal_buy")
+        if not _secondary_fallback or _secondary_fallback == _ideal:
+            try:
+                _ideal_float = float(str(_ideal).replace(",", ""))
+                _secondary_fallback = round(_ideal_float * 0.98, 2)  # 2% below ideal_buy
+            except (TypeError, ValueError):
+                _secondary_fallback = None
+        sniper.setdefault("secondary_buy", _secondary_fallback or "N/A")
         sniper.setdefault(
             "stop_loss",
             key_levels.get("stop_loss")
@@ -844,6 +856,68 @@ class AgentOrchestrator:
         if not core.get("signal_type"):
             core["signal_type"] = _signal_to_signal_type(decision_type)
         core["position_advice"] = position_advice
+
+        # Validate sniper point logic based on signal direction.
+        def _to_f(v):
+            try:
+                return float(str(v).split()[0].replace(",", ""))
+            except Exception:
+                return None
+
+        _ideal_f = _to_f(sniper.get("ideal_buy"))
+        _stop_f = _to_f(sniper.get("stop_loss"))
+        _profit_f = _to_f(sniper.get("take_profit"))
+
+        # Get current price as reference for sell-side validation
+        _current_price = None
+        _rq = ctx.get_data("realtime_quote")
+        if isinstance(_rq, dict):
+            _current_price = _to_f(_rq.get("price"))
+
+        if decision_type in ("buy", "strong_buy"):
+            # BUY: stop_loss < entry < take_profit
+            if _ideal_f and _stop_f and _stop_f >= _ideal_f:
+                # stop_loss above or equal to entry → wrong, correct to 5% below ideal_buy
+                sniper["stop_loss"] = round(_ideal_f * 0.95, 2)
+                logger.warning(
+                    "Corrected stop_loss %s → %s (was >= ideal_buy %s for BUY signal)",
+                    _stop_f, sniper["stop_loss"], _ideal_f,
+                )
+                _stop_f = _to_f(sniper["stop_loss"])
+            if _ideal_f and _profit_f and _profit_f <= _ideal_f:
+                # take_profit at or below entry → clear it
+                sniper["take_profit"] = "N/A"
+                logger.warning(
+                    "Cleared take_profit %s (was <= ideal_buy %s for BUY signal)",
+                    _profit_f, _ideal_f,
+                )
+
+        elif decision_type in ("sell", "strong_sell"):
+            # SELL: stop_loss > current_price > take_profit
+            # stop_loss must be ABOVE current price (where short thesis fails)
+            _ref = _current_price or _ideal_f
+            if _ref and _stop_f and _stop_f <= _ref:
+                sniper["stop_loss"] = round(_ref * 1.05, 2)
+                logger.warning(
+                    "Corrected stop_loss %s → %s (was <= ref_price %s for SELL signal)",
+                    _stop_f, sniper["stop_loss"], _ref,
+                )
+                _stop_f = _to_f(sniper["stop_loss"])
+            # take_profit must be BELOW current price (downside target)
+            if _ref and _profit_f and _profit_f >= _ref:
+                # take_profit above or at current price is wrong for a sell signal.
+                # Prefer secondary_buy (deeper support) to avoid take_profit == ideal_buy.
+                _secondary_f = _to_f(sniper.get("secondary_buy"))
+                if _secondary_f and _secondary_f < _ref:
+                    sniper["take_profit"] = _secondary_f
+                elif _ideal_f and _ideal_f < _ref:
+                    sniper["take_profit"] = _ideal_f
+                else:
+                    sniper["take_profit"] = round(_ref * 0.95, 2)
+                logger.warning(
+                    "Corrected take_profit %s → %s (was >= ref_price %s for SELL signal)",
+                    _profit_f, sniper["take_profit"], _ref,
+                )
 
         battle["sniper_points"] = sniper
         if "action_checklist" not in battle:
@@ -1416,6 +1490,9 @@ def _coerce_level_value(value: Any) -> Any:
     if isinstance(value, (int, float)):
         return round(float(value), 2)
     text = str(value).strip()
+    # Reject very long strings — they are strategy template text leaked from prompts, not prices
+    if len(text) > 60:
+        return None
     return text or None
 
 

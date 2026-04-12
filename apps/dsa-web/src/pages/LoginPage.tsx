@@ -15,7 +15,7 @@ const LoginPage: React.FC = () => {
 
   // Set page title
   useEffect(() => {
-    document.title = '登录 - DSA';
+    document.title = 'Đăng nhập - DSA';
   }, []);
   const [searchParams] = useSearchParams();
   const rawRedirect = searchParams.get('redirect') ?? '';
@@ -52,7 +52,7 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
     if (isFirstTime && password !== passwordConfirm) {
-      setError('两次输入的密码不一致');
+      setError('Hai lần nhập mật khẩu không khớp');
       return;
     }
     setIsSubmitting(true);
@@ -61,7 +61,7 @@ const LoginPage: React.FC = () => {
       if (result.success) {
         navigate(redirect, { replace: true });
       } else {
-        setError(result.error ?? '登录失败');
+        setError(result.error ?? 'Đăng nhập thất bại');
       }
     } finally {
       setIsSubmitting(false);
@@ -181,19 +181,19 @@ const LoginPage: React.FC = () => {
                 {isFirstTime ? (
                   <>
                     <ShieldCheck className="h-6 w-6 text-emerald-400" />
-                    <span>设置初始密码</span>
+                    <span>Đặt mật khẩu khởi tạo</span>
                   </>
                 ) : (
                   <>
                     <Lock className="h-5 w-5 text-[var(--login-accent-text)]" />
-                    <span>管理员登录</span>
+                    <span>Đăng nhập quản trị</span>
                   </>
                 )}
               </h1>
               <p className="mt-2 text-sm text-[var(--login-text-secondary)]">
                 {isFirstTime
-                  ? '首次启用认证，请为系统工作台设置管理员密码。'
-                  : '访问 DSA 量化决策引擎需要有效的身份凭证。'}
+                  ? 'Lần đầu bật xác thực, hãy đặt mật khẩu quản trị cho hệ thống.'
+                  : 'Cần thông tin xác thực hợp lệ để truy cập DSA.'}
               </p>
             </div>
 
@@ -204,8 +204,8 @@ const LoginPage: React.FC = () => {
                   type="password"
                   allowTogglePassword
                   iconType="password"
-                  label={isFirstTime ? '管理员密码' : '登录密码'}
-                  placeholder={isFirstTime ? '请设置 6 位以上密码' : '请输入密码'}
+                  label={isFirstTime ? 'Mật khẩu quản trị' : 'Mật khẩu đăng nhập'}
+                  placeholder={isFirstTime ? 'Đặt mật khẩu tối thiểu 6 ký tự' : 'Nhập mật khẩu'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isSubmitting}
@@ -220,8 +220,8 @@ const LoginPage: React.FC = () => {
                     type="password"
                     allowTogglePassword
                     iconType="password"
-                    label="确认密码"
-                    placeholder="再次确认管理员密码"
+                    label="Xác nhận mật khẩu"
+                    placeholder="Nhập lại mật khẩu quản trị"
                     value={passwordConfirm}
                     onChange={(e) => setPasswordConfirm(e.target.value)}
                     disabled={isSubmitting}
@@ -238,7 +238,7 @@ const LoginPage: React.FC = () => {
                   className="overflow-hidden"
                 >
                   <SettingsAlert
-                    title={isFirstTime ? '配置失败' : '验证未通过'}
+                    title={isFirstTime ? 'Cấu hình thất bại' : 'Xác thực không thành công'}
                     message={isParsedApiError(error) ? error.message : error}
                     variant="error"
                     className="!border-[var(--login-error-border)] !bg-[var(--login-error-bg)] !text-[var(--login-error-text)]"
@@ -257,10 +257,10 @@ const LoginPage: React.FC = () => {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>{isFirstTime ? '初始化中...' : '正在建立连接...'}</span>
+                      <span>{isFirstTime ? 'Đang khởi tạo...' : 'Đang kết nối...'}</span>
                     </>
                   ) : (
-                    <span>{isFirstTime ? '完成设置并登录' : '授权进入工作台'}</span>
+                    <span>{isFirstTime ? 'Hoàn tất cài đặt và đăng nhập' : 'Xác thực và vào bảng điều khiển'}</span>
                   )}
                 </div>
                 <div className="absolute inset-0 z-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />

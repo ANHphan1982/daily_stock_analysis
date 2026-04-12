@@ -51,7 +51,7 @@ Requirements:
 """
             if report_language == "en":
                 return prompt + "\nAlways answer in English.\n"
-            return prompt + "\n默认使用中文回答。\n"
+            return prompt + "\nMặc định trả lời bằng tiếng Việt.\n"
 
         skills = ""
         if self.skill_instructions:
@@ -111,10 +111,10 @@ new decision_type values.
 """
         return prompt + """
 
-## 输出语言
-- 所有 JSON 键名保持不变。
-- `decision_type` 必须保持为 `buy|hold|sell`。
-- 所有面向用户的人类可读文本值必须使用中文。
+## Ngôn ngữ đầu ra
+- Giữ nguyên tất cả tên khóa JSON.
+- `decision_type` phải giữ nguyên là `buy|hold|sell`.
+- Tất cả giá trị văn bản hướng tới người dùng phải sử dụng tiếng Việt.
 """
 
     def build_user_message(self, ctx: AgentContext) -> str:

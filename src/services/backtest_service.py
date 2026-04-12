@@ -41,7 +41,9 @@ class BacktestService:
         if eval_window_days is None:
             eval_window_days = getattr(config, "backtest_eval_window_days", 10)
         if min_age_days is None:
-            min_age_days = getattr(config, "backtest_min_age_days", 14)
+            # Default to 3 days: allow recent analyses to be evaluated
+            # (14-day default was too strict, skipped almost all new analyses)
+            min_age_days = getattr(config, "backtest_min_age_days", 3)
 
         engine_version = getattr(config, "backtest_engine_version", "v1")
         neutral_band_pct = float(getattr(config, "backtest_neutral_band_pct", 2.0))
@@ -196,12 +198,13 @@ class BacktestService:
         if results_to_save:
             saved = self.repo.save_results_batch(results_to_save, replace_existing=force)
 
-        if saved:
-            self._recompute_summaries(
-                touched_codes=sorted(touched_codes),
-                eval_window_days=int(eval_window_days),
-                engine_version=str(engine_version),
-            )
+        # Always recompute summaries: even when saved=0, existing DB rows may not
+        # have a summary yet (e.g. first run, or after a data wipe).
+        self._recompute_summaries(
+            touched_codes=sorted(touched_codes) if touched_codes else [],
+            eval_window_days=int(eval_window_days),
+            engine_version=str(engine_version),
+        )
 
         return {
             "processed": processed,

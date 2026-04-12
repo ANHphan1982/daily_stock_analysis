@@ -78,12 +78,17 @@ def normalize_stock_code(stock_code: str) -> str:
     - 'HK00700'     -> 'HK00700'  (keep HK prefix for HK stocks)
     - '1810.HK'     -> 'HK01810'  (normalize HK suffix to canonical prefix form)
     - 'AAPL'        -> 'AAPL'     (keep US stock ticker as-is)
+    - 'VN:VIC'      -> 'VN:VIC'   (keep VN: prefix for Vietnamese stocks)
 
     This function is applied at the DataProviderManager layer so that
     all individual fetchers receive a clean 6-digit code (for A-shares/ETFs).
     """
     code = stock_code.strip()
     upper = code.upper()
+
+    # Keep VN: prefix as-is (Vietnamese stocks)
+    if upper.startswith("VN:"):
+        return upper
 
     # Normalize HK prefix to a canonical 5-digit form (e.g. hk1810 -> HK01810)
     if upper.startswith('HK') and not upper.startswith('HK.'):
@@ -154,8 +159,15 @@ def _is_etf_code(code: str) -> bool:
     )
 
 
+def _is_vn_market(code: str) -> bool:
+    """Check if code is a Vietnamese stock (VN: prefix)."""
+    return (code or "").strip().upper().startswith("VN:")
+
+
 def _market_tag(code: str) -> str:
-    """返回市场标签: cn/us/hk."""
+    """返回市场标签: cn/us/hk/vn."""
+    if _is_vn_market(code):
+        return "vn"
     if _is_us_market(code):
         return "us"
     if _is_hk_market(code):
@@ -747,6 +759,7 @@ class DataFetcherManager:
         - 否则按默认优先级：
           0. EfinanceFetcher (Priority 0) - 最高优先级
           1. AkshareFetcher (Priority 1)
+          1. VnstockFetcher (Priority 1) - 越南股票专用
           2. PytdxFetcher (Priority 2) - 通达信
           2. TushareFetcher (Priority 2)
           3. BaostockFetcher (Priority 3)
@@ -758,6 +771,7 @@ class DataFetcherManager:
         from .pytdx_fetcher import PytdxFetcher
         from .baostock_fetcher import BaostockFetcher
         from .yfinance_fetcher import YfinanceFetcher
+        from .vnstock_fetcher import VnstockFetcher
         # 创建所有数据源实例（优先级在各 Fetcher 的 __init__ 中确定）
         efinance = EfinanceFetcher()
         akshare = AkshareFetcher()
@@ -765,6 +779,7 @@ class DataFetcherManager:
         pytdx = PytdxFetcher()      # 通达信数据源（可配 PYTDX_HOST/PYTDX_PORT）
         baostock = BaostockFetcher()
         yfinance = YfinanceFetcher()
+        vnstock = VnstockFetcher()  # 越南股票数据源
 
         # 初始化数据源列表
         self._fetchers = [
@@ -774,6 +789,7 @@ class DataFetcherManager:
             pytdx,
             baostock,
             yfinance,
+            vnstock,
         ]
 
         # 按优先级排序（Tushare 如果配置了 Token 且初始化成功，优先级为 0）
@@ -825,6 +841,42 @@ class DataFetcherManager:
         errors = []
         total_fetchers = len(self._fetchers)
         request_start = time.time()
+
+        # 快速路径：越南股票直接路由到 VnstockFetcher
+        if _is_vn_market(stock_code):
+            for attempt, fetcher in enumerate(self._fetchers, start=1):
+                if fetcher.name == "VnstockFetcher":
+                    try:
+                        logger.info(
+                            f"[数据源尝试 {attempt}/{total_fetchers}] [{fetcher.name}] "
+                            f"越南股票 {stock_code} 直接路由..."
+                        )
+                        df = fetcher.get_daily_data(
+                            stock_code=stock_code,
+                            start_date=start_date,
+                            end_date=end_date,
+                            days=days,
+                        )
+                        if df is not None and not df.empty:
+                            elapsed = time.time() - request_start
+                            logger.info(
+                                f"[数据源完成] {stock_code} 使用 [{fetcher.name}] 获取成功: "
+                                f"rows={len(df)}, elapsed={elapsed:.2f}s"
+                            )
+                            return df, fetcher.name
+                    except Exception as e:
+                        error_type, error_reason = summarize_exception(e)
+                        error_msg = f"[{fetcher.name}] ({error_type}) {error_reason}"
+                        logger.warning(
+                            f"[数据源失败 {attempt}/{total_fetchers}] [{fetcher.name}] {stock_code}: "
+                            f"error_type={error_type}, reason={error_reason}"
+                        )
+                        errors.append(error_msg)
+                    break
+            error_summary = f"越南股票 {stock_code} 获取失败:\n" + "\n".join(errors)
+            elapsed = time.time() - request_start
+            logger.error(f"[数据源终止] {stock_code} 获取失败: elapsed={elapsed:.2f}s\n{error_summary}")
+            raise DataFetchError(error_summary)
 
         # 快速路径：美股指数与美股股票直接路由到 YfinanceFetcher
         if is_us_index_code(stock_code) or is_us_stock_code(stock_code):
@@ -1017,6 +1069,22 @@ class DataFetcherManager:
         # 如果实时行情功能被禁用，直接返回 None
         if not config.enable_realtime_quote:
             logger.debug(f"[实时行情] 功能已禁用，跳过 {stock_code}")
+            return None
+
+        # Chung khoan Viet Nam: chi dung VnstockFetcher
+        if _is_vn_market(stock_code):
+            for fetcher in self._fetchers:
+                if fetcher.name == "VnstockFetcher":
+                    if hasattr(fetcher, "get_realtime_quote"):
+                        try:
+                            quote = fetcher.get_realtime_quote(stock_code)
+                            if quote is not None:
+                                logger.info(f"[实时行情] VN {stock_code} 成功获取 (来源: vnstock)")
+                                return quote
+                        except Exception as e:
+                            logger.warning(f"[实时行情] VN {stock_code} 获取失败: {e}")
+                    break
+            logger.warning(f"[实时行情] VN {stock_code} 无可用数据源")
             return None
 
         # 美股指数由 YfinanceFetcher 处理（在美股股票检查之前）

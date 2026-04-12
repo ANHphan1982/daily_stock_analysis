@@ -12,6 +12,34 @@ import type {
 
 // ============ Helpers ============
 
+const ADVICE_VI: Record<string, string> = {
+  '买入': 'Mua vào',
+  '加仓': 'Tăng vị thế',
+  '强烈买入': 'Mua mạnh',
+  '增持': 'Tăng tỷ trọng',
+  '建仓': 'Mở vị thế',
+  '持有': 'Giữ',
+  '观望': 'Quan sát',
+  '等待': 'Chờ đợi',
+  '减仓/卖出': 'Giảm vị thế/Bán',
+  '卖出': 'Bán',
+  '减仓': 'Giảm vị thế',
+  '强烈卖出': 'Bán mạnh',
+  '清仓': 'Thoát toàn bộ',
+};
+
+function translateAdvice(advice?: string): string {
+  if (!advice) return '--';
+  for (const [zh, vi] of Object.entries(ADVICE_VI)) {
+    if (advice.startsWith(zh)) {
+      const suffix = advice.slice(zh.length);
+      const suffixVi = suffix.includes('风控下调') ? ' (đã điều chỉnh bởi quản lý rủi ro)' : suffix;
+      return vi + suffixVi;
+    }
+  }
+  return advice;
+}
+
 function pct(value?: number | null): string {
   if (value == null) return '--';
   return `${value.toFixed(1)}%`;
@@ -21,11 +49,11 @@ function outcomeBadge(outcome?: string) {
   if (!outcome) return <Badge variant="default">--</Badge>;
   switch (outcome) {
     case 'win':
-      return <Badge variant="success" glow>WIN</Badge>;
+      return <Badge variant="success" glow>THẮNG</Badge>;
     case 'loss':
-      return <Badge variant="danger" glow>LOSS</Badge>;
+      return <Badge variant="danger" glow>THUA</Badge>;
     case 'neutral':
-      return <Badge variant="warning">NEUTRAL</Badge>;
+      return <Badge variant="warning">HÒA</Badge>;
     default:
       return <Badge variant="default">{outcome}</Badge>;
   }
@@ -34,11 +62,11 @@ function outcomeBadge(outcome?: string) {
 function statusBadge(status: string) {
   switch (status) {
     case 'completed':
-      return <Badge variant="success">completed</Badge>;
+      return <Badge variant="success">hoàn thành</Badge>;
     case 'insufficient':
-      return <Badge variant="warning">insufficient</Badge>;
+      return <Badge variant="warning">không đủ dữ liệu</Badge>;
     case 'error':
-      return <Badge variant="danger">error</Badge>;
+      return <Badge variant="danger">lỗi</Badge>;
     default:
       return <Badge variant="default">{status}</Badge>;
   }
@@ -61,47 +89,65 @@ const MetricRow: React.FC<{ label: string; value: string; accent?: boolean }> = 
 
 // ============ Performance Card ============
 
-const PerformanceCard: React.FC<{ metrics: PerformanceMetrics; title: string }> = ({ metrics, title }) => (
-  <Card variant="gradient" padding="md" className="animate-fade-in">
-    <div className="mb-3">
-      <span className="label-uppercase">{title}</span>
-    </div>
-    <MetricRow label="Direction Accuracy" value={pct(metrics.directionAccuracyPct)} accent />
-    <MetricRow label="Win Rate" value={pct(metrics.winRatePct)} accent />
-    <MetricRow label="Avg Sim. Return" value={pct(metrics.avgSimulatedReturnPct)} />
-    <MetricRow label="Avg Stock Return" value={pct(metrics.avgStockReturnPct)} />
-    <MetricRow label="SL Trigger Rate" value={pct(metrics.stopLossTriggerRate)} />
-    <MetricRow label="TP Trigger Rate" value={pct(metrics.takeProfitTriggerRate)} />
-    <MetricRow label="Avg Days to Hit" value={metrics.avgDaysToFirstHit != null ? metrics.avgDaysToFirstHit.toFixed(1) : '--'} />
-    <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between">
-      <span className="text-xs text-muted-text">Evaluations</span>
-      <span className="text-xs text-secondary-text font-mono">
-        {Number(metrics.completedCount)} / {Number(metrics.totalEvaluations)}
-      </span>
-    </div>
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-muted-text">W / L / N</span>
-      <span className="text-xs font-mono">
-        <span className="text-emerald-400">{metrics.winCount}</span>
-        {' / '}
-        <span className="text-red-400">{metrics.lossCount}</span>
-        {' / '}
-        <span className="text-amber-400">{metrics.neutralCount}</span>
-      </span>
-    </div>
-  </Card>
-);
+const PerformanceCard: React.FC<{ metrics: PerformanceMetrics; title: string }> = ({ metrics, title }) => {
+  const hasCompleted = metrics.completedCount > 0;
+  return (
+    <Card variant="gradient" padding="md" className="animate-fade-in">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="label-uppercase">{title}</span>
+        {!hasCompleted && metrics.totalEvaluations > 0 && (
+          <span className="text-xs text-amber-400">chờ đủ dữ liệu</span>
+        )}
+      </div>
+      {hasCompleted ? (
+        <>
+          <MetricRow label="Độ chính xác hướng" value={pct(metrics.directionAccuracyPct)} accent />
+          <MetricRow label="Tỷ lệ thắng" value={pct(metrics.winRatePct)} accent />
+          <MetricRow label="LN mô phỏng TB" value={pct(metrics.avgSimulatedReturnPct)} />
+          <MetricRow label="LN CP TB" value={pct(metrics.avgStockReturnPct)} />
+          <MetricRow label="Tỷ lệ chạm SL" value={pct(metrics.stopLossTriggerRate)} />
+          <MetricRow label="Tỷ lệ chạm TP" value={pct(metrics.takeProfitTriggerRate)} />
+          <MetricRow label="Số ngày TB đến mục tiêu" value={metrics.avgDaysToFirstHit != null ? metrics.avgDaysToFirstHit.toFixed(1) : '--'} />
+        </>
+      ) : (
+        <p className="text-xs text-muted-text py-3 text-center">
+          {metrics.totalEvaluations > 0
+            ? `${metrics.totalEvaluations} phân tích đang chờ dữ liệu giá (cửa sổ ${metrics.evalWindowDays} ngày)`
+            : 'Chưa có phân tích nào đủ điều kiện backtest'}
+        </p>
+      )}
+      <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between">
+        <span className="text-xs text-muted-text">Hoàn thành / Tổng</span>
+        <span className="text-xs text-secondary-text font-mono">
+          {Number(metrics.completedCount)} / {Number(metrics.totalEvaluations)}
+        </span>
+      </div>
+      {hasCompleted && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-text">T / L / HB</span>
+          <span className="text-xs font-mono">
+            <span className="text-emerald-400">{metrics.winCount}</span>
+            {' / '}
+            <span className="text-red-400">{metrics.lossCount}</span>
+            {' / '}
+            <span className="text-amber-400">{metrics.neutralCount}</span>
+          </span>
+        </div>
+      )}
+    </Card>
+  );
+};
 
 // ============ Run Summary ============
 
 const RunSummary: React.FC<{ data: BacktestRunResponse }> = ({ data }) => (
   <div className="flex items-center gap-4 rounded-lg border border-white/5 bg-elevated px-3 py-2 text-xs font-mono animate-fade-in">
-    <span className="text-secondary-text">Processed: <span className="text-foreground">{data.processed}</span></span>
-    <span className="text-secondary-text">Saved: <span className="text-cyan">{data.saved}</span></span>
-    <span className="text-secondary-text">Completed: <span className="text-emerald-400">{data.completed}</span></span>
-    <span className="text-secondary-text">Insufficient: <span className="text-amber-400">{data.insufficient}</span></span>
+    <span className="text-secondary-text">Đã xử lý: <span className="text-foreground">{data.processed}</span></span>
+    <span className="text-secondary-text">Đã lưu: <span className="text-cyan">{data.saved}</span></span>
+    <span className="text-secondary-text">Hoàn thành: <span className="text-emerald-400">{data.completed}</span></span>
+    <span className="text-secondary-text">Không đủ dữ liệu: <span className="text-amber-400">{data.insufficient}</span></span>
     {data.errors > 0 && (
-      <span className="text-secondary-text">Errors: <span className="text-red-400">{data.errors}</span></span>
+      <span className="text-secondary-text">Lỗi: <span className="text-red-400">{data.errors}</span></span>
     )}
   </div>
 );
@@ -111,7 +157,7 @@ const RunSummary: React.FC<{ data: BacktestRunResponse }> = ({ data }) => (
 const BacktestPage: React.FC = () => {
   // Set page title
   useEffect(() => {
-    document.title = '策略回测 - DSA';
+    document.title = 'Backtest chiến lược - DSA';
   }, []);
 
   // Input state
@@ -177,15 +223,18 @@ const BacktestPage: React.FC = () => {
   // Initial load — fetch performance first, then filter results by its window
   useEffect(() => {
     const init = async () => {
-      // Get latest performance (unfiltered returns most recent summary)
-      const overall = await backtestApi.getOverallPerformance();
-      setOverallPerf(overall);
-      // Use the summary's eval_window_days to filter results consistently
-      const windowDays = overall?.evalWindowDays;
-      if (windowDays && !evalDays) {
-        setEvalDays(String(windowDays));
+      try {
+        const overall = await backtestApi.getOverallPerformance();
+        setOverallPerf(overall);
+        const windowDays = overall?.evalWindowDays;
+        if (windowDays && !evalDays) {
+          setEvalDays(String(windowDays));
+        }
+        fetchResults(1, undefined, windowDays);
+      } catch (err) {
+        setPageError(getParsedApiError(err));
+        fetchResults(1);
       }
-      fetchResults(1, undefined, windowDays);
     };
     init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -248,7 +297,7 @@ const BacktestPage: React.FC = () => {
               value={codeFilter}
               onChange={(e) => setCodeFilter(e.target.value.toUpperCase())}
               onKeyDown={handleKeyDown}
-              placeholder="Filter by stock code (leave empty for all)"
+              placeholder="Lọc theo mã cổ phiếu (để trống = tất cả)"
               disabled={isRunning}
               className="input-terminal w-full"
             />
@@ -259,10 +308,10 @@ const BacktestPage: React.FC = () => {
             disabled={isLoadingResults}
             className="btn-secondary flex items-center gap-1.5 whitespace-nowrap"
           >
-            Filter
+            Lọc
           </button>
           <div className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-xs text-muted-text">Window</span>
+            <span className="text-xs text-muted-text">Cửa sổ</span>
             <input
               type="number"
               min={1}
@@ -292,7 +341,7 @@ const BacktestPage: React.FC = () => {
               inline-block w-1.5 h-1.5 rounded-full transition-colors duration-200
               ${forceRerun ? 'bg-cyan shadow-[0_0_4px_rgba(0,212,255,0.6)]' : 'bg-border'}
             `} />
-            Force
+            Bắt buộc
           </button>
           <button
             type="button"
@@ -306,10 +355,10 @@ const BacktestPage: React.FC = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Running...
+                Đang chạy...
               </>
             ) : (
-              'Run Backtest'
+              'Chạy Backtest'
             )}
           </button>
         </div>
@@ -332,11 +381,11 @@ const BacktestPage: React.FC = () => {
               <div className="w-8 h-8 border-2 border-cyan/20 border-t-cyan rounded-full animate-spin" />
             </div>
           ) : overallPerf ? (
-            <PerformanceCard metrics={overallPerf} title="Overall Performance" />
+            <PerformanceCard metrics={overallPerf} title="Hiệu suất tổng thể" />
           ) : (
             <Card padding="md">
               <p className="text-xs text-muted-text text-center py-4">
-                No backtest data yet. Run a backtest to see performance metrics.
+                Chưa có dữ liệu backtest. Chạy backtest để xem chỉ số hiệu suất.
               </p>
             </Card>
           )}
@@ -354,7 +403,7 @@ const BacktestPage: React.FC = () => {
           {isLoadingResults ? (
             <div className="flex flex-col items-center justify-center h-64">
               <div className="w-10 h-10 border-3 border-cyan/20 border-t-cyan rounded-full animate-spin" />
-              <p className="mt-3 text-secondary-text text-sm">Loading results...</p>
+              <p className="mt-3 text-secondary-text text-sm">Đang tải kết quả...</p>
             </div>
           ) : results.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -363,9 +412,9 @@ const BacktestPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
-              <h3 className="text-base font-medium text-foreground mb-1.5">No Results</h3>
+              <h3 className="text-base font-medium text-foreground mb-1.5">Không có kết quả</h3>
               <p className="text-xs text-muted-text max-w-xs">
-                Run a backtest to evaluate historical analysis accuracy
+                Chạy backtest để đánh giá độ chính xác phân tích lịch sử
               </p>
             </div>
           ) : (
@@ -374,15 +423,15 @@ const BacktestPage: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-elevated text-left">
-                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Code</th>
-                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Date</th>
-                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Advice</th>
-                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Dir.</th>
-                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Outcome</th>
-                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider text-right">Return%</th>
+                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Mã CP</th>
+                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Ngày</th>
+                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Khuyến nghị</th>
+                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Hướng</th>
+                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Kết quả</th>
+                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider text-right">Lợi nhuận%</th>
                       <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider text-center">SL</th>
                       <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider text-center">TP</th>
-                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Status</th>
+                      <th className="px-3 py-2.5 text-xs font-medium text-secondary-text uppercase tracking-wider">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -393,8 +442,8 @@ const BacktestPage: React.FC = () => {
                       >
                         <td className="px-3 py-2 font-mono text-cyan text-xs">{row.code}</td>
                         <td className="px-3 py-2 text-xs text-secondary-text">{row.analysisDate || '--'}</td>
-                        <td className="px-3 py-2 text-xs text-foreground truncate max-w-[140px]" title={row.operationAdvice || ''}>
-                          {row.operationAdvice || '--'}
+                        <td className="px-3 py-2 text-xs text-foreground truncate max-w-[140px]" title={translateAdvice(row.operationAdvice)}>
+                          {translateAdvice(row.operationAdvice)}
                         </td>
                         <td className="px-3 py-2 text-xs">
                           <span className="flex items-center gap-1">
@@ -431,7 +480,7 @@ const BacktestPage: React.FC = () => {
               </div>
 
               <p className="text-xs text-muted-text text-center mt-2">
-                {totalResults} result{totalResults !== 1 ? 's' : ''} total
+                {totalResults} kết quả
               </p>
             </div>
           )}

@@ -46,6 +46,9 @@ def is_code_like(value: str) -> bool:
     # Support exchange-prefixed codes: SH600519, SZ000001, HK00700
     if _strip_exchange_prefix(text) is not None:
         return True
+    # Vietnam stocks: VN:VIC, VN:HPG, VN:DCM
+    if re.match(r"^VN:[A-Z]{1,10}$", text):
+        return True
     return False
 
 

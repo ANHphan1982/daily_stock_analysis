@@ -39,7 +39,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
           type="button"
           onClick={() => setMobileOpen(true)}
           className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-card/85 text-secondary-text shadow-soft-card backdrop-blur-md transition-colors hover:bg-hover hover:text-foreground"
-          aria-label="打开导航菜单"
+          aria-label="Mở menu điều hướng"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -53,9 +53,9 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
           className={cn(
             'sticky top-3 hidden shrink-0 overflow-visible rounded-[1.5rem] border border-[#00d4ff]/50 bg-card/72 p-2 shadow-soft-card backdrop-blur-sm transition-[width] duration-200 lg:flex',
             'max-h-[calc(100vh-1.5rem)] self-start sm:top-4 sm:max-h-[calc(100vh-2rem)]',
-            collapsed ? 'w-[64px]' : 'w-[116px]'
+            collapsed ? 'w-[64px]' : 'w-[160px]'
           )}
-          aria-label="桌面侧边导航"
+          aria-label="Điều hướng thanh bên máy tính"
         >
           <SidebarNav collapsed={collapsed} onNavigate={() => setMobileOpen(false)} />
         </aside>
@@ -68,7 +68,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       <Drawer
         isOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        title="导航菜单"
+        title="Menu điều hướng"
         width="max-w-xs"
         zIndex={90}
         side="left"

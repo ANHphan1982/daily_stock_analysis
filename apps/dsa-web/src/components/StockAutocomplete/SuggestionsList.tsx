@@ -85,17 +85,22 @@ export function SuggestionsList({
 const MARKET_BADGE_CONFIG = {
   CN: { label: 'A股', className: 'text-red-500 bg-red-500/10' },
   HK: { label: '港股', className: 'text-green-500 bg-green-500/10' },
-  US: { label: '美股', className: 'text-blue-500 bg-blue-500/10' },
-  INDEX: { label: '指数', className: 'text-purple-500 bg-purple-500/10' },
+  US: { label: 'My', className: 'text-blue-500 bg-blue-500/10' },
+  VN: { label: 'VN', className: 'text-emerald-500 bg-emerald-500/10' },
+  INDEX: { label: 'Chi so', className: 'text-purple-500 bg-purple-500/10' },
   ETF: { label: 'ETF', className: 'text-yellow-500 bg-yellow-500/10' },
-  BSE: { label: '北交所', className: 'text-orange-500 bg-orange-500/10' },
+  BSE: { label: 'Bac Kinh', className: 'text-orange-500 bg-orange-500/10' },
 } as const;
 
 function MarketBadge({ market }: { market: string }) {
   const config = MARKET_BADGE_CONFIG[market as keyof typeof MARKET_BADGE_CONFIG];
 
   if (!config) {
-    throw new Error(`Unsupported market in stock suggestion: ${market}`);
+    return (
+      <span className="text-xs px-2 py-0.5 rounded text-gray-500 bg-gray-500/10">
+        {market}
+      </span>
+    );
   }
 
   return (
@@ -108,10 +113,10 @@ function MarketBadge({ market }: { market: string }) {
 // Helper component: Match type badge
 function MatchTypeBadge({ matchType }: { matchType: string }) {
   const configMap = {
-    exact: { label: '精确', className: 'bg-cyan/10 text-cyan' },
-    prefix: { label: '前缀', className: 'bg-purple/10 text-purple' },
-    contains: { label: '包含', className: 'bg-yellow/10 text-yellow' },
-    fuzzy: { label: '模糊', className: 'bg-gray/10 text-gray' },
+    exact: { label: 'Chinh xac', className: 'bg-cyan/10 text-cyan' },
+    prefix: { label: 'Tien to', className: 'bg-purple/10 text-purple' },
+    contains: { label: 'Bao gom', className: 'bg-yellow/10 text-yellow' },
+    fuzzy: { label: 'Mo', className: 'bg-gray/10 text-gray' },
   };
 
   const config = configMap[matchType as keyof typeof configMap] || configMap.fuzzy;

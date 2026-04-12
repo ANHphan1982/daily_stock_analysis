@@ -56,7 +56,7 @@ class PortfolioAgent(BaseAgent):
     def system_prompt(self, ctx: AgentContext) -> str:
         return (
             "You are a professional **portfolio analyst** specializing in "
-            "multi-asset allocation for A-share, HK, and US equity portfolios.\n\n"
+            "multi-asset allocation for A-share, HK, US, and Vietnam (VN:) equity portfolios.\n\n"
             "## Your task\n"
             "Given individual stock analysis opinions, produce a **Portfolio Assessment** "
             "that covers:\n"

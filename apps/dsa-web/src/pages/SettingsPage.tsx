@@ -44,7 +44,7 @@ const SettingsPage: React.FC = () => {
 
   // Set page title
   useEffect(() => {
-    document.title = '系统设置 - DSA';
+    document.title = 'Cài đặt hệ thống - DSA';
   }, []);
 
   const {
@@ -168,7 +168,7 @@ const SettingsPage: React.FC = () => {
       anchor.click();
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
-      setDesktopActionSuccess('已导出当前已保存的 .env 备份。');
+      setDesktopActionSuccess('Đã xuất bản sao lưu .env hiện tại.');
     } catch (error: unknown) {
       setDesktopActionError(getParsedApiError(error));
     } finally {
@@ -207,14 +207,14 @@ const SettingsPage: React.FC = () => {
       const reloaded = await load();
       if (!reloaded) {
         setDesktopActionError(createParsedApiError({
-          title: '配置已导入但刷新失败',
-          message: '备份已导入，但重新加载配置失败，请手动重载页面。',
+          title: 'Đã nhập cấu hình nhưng làm mới thất bại',
+          message: 'Bản sao lưu đã được nhập, nhưng tải lại cấu hình thất bại, vui lòng tải lại trang thủ công.',
           rawMessage: 'Desktop env import succeeded but config refresh failed',
           category: 'http_error',
         }));
         return;
       }
-      setDesktopActionSuccess('已导入 .env 备份并重新加载配置。');
+      setDesktopActionSuccess('Đã nhập bản sao lưu .env và tải lại cấu hình.');
     } catch (error: unknown) {
       setDesktopActionError(getParsedApiError(error));
     } finally {
@@ -227,9 +227,9 @@ const SettingsPage: React.FC = () => {
       <div className="mb-5 rounded-xl bg-card/50 px-5 py-5 shadow-soft-card-strong">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">系统设置</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">Cài đặt hệ thống</h1>
             <p className="text-xs leading-6 text-muted-text">
-              统一管理模型、数据源、通知、安全认证与导入能力。
+              Quản lý thống nhất mô hình, nguồn dữ liệu, thông báo, xác thực và nhập liệu.
             </p>
           </div>
 
@@ -241,7 +241,7 @@ const SettingsPage: React.FC = () => {
               onClick={resetDraft}
               disabled={isLoading || isSaving}
             >
-              重置
+              Đặt lại
             </Button>
             <Button
               type="button"
@@ -249,9 +249,9 @@ const SettingsPage: React.FC = () => {
               onClick={() => void save()}
               disabled={!hasDirty || isSaving || isLoading}
               isLoading={isSaving}
-              loadingText="保存中..."
+              loadingText="Đang lưu..."
             >
-              {isSaving ? '保存中...' : `保存配置${dirtyCount ? ` (${dirtyCount})` : ''}`}
+              {isSaving ? 'Đang lưu...' : `Lưu cấu hình${dirtyCount ? ` (${dirtyCount})` : ''}`}
             </Button>
           </div>
         </div>
@@ -260,7 +260,7 @@ const SettingsPage: React.FC = () => {
           <ApiErrorAlert
             className="mt-3"
             error={saveError}
-            actionLabel={retryAction === 'save' ? '重试保存' : undefined}
+            actionLabel={retryAction === 'save' ? 'Thử lại lưu' : undefined}
             onAction={retryAction === 'save' ? () => void retry() : undefined}
           />
         ) : null}
@@ -269,7 +269,7 @@ const SettingsPage: React.FC = () => {
       {loadError ? (
         <ApiErrorAlert
           error={loadError}
-          actionLabel={retryAction === 'load' ? '重试加载' : '重新加载'}
+          actionLabel={retryAction === 'load' ? 'Thử lại tải' : 'Tải lại'}
           onAction={() => void retry()}
           className="mb-4"
         />
@@ -292,8 +292,8 @@ const SettingsPage: React.FC = () => {
             {activeCategory === 'system' ? <AuthSettingsCard /> : null}
             {activeCategory === 'system' && isDesktopRuntime ? (
               <SettingsSectionCard
-                title="配置备份"
-                description="导出当前已保存的 .env 备份，或从备份文件恢复桌面端配置。导入会覆盖备份中出现的键并立即重载。"
+                title="Sao lưu cấu hình"
+                description="Xuất bản sao lưu .env hiện tại, hoặc khôi phục cấu hình từ file sao lưu. Nhập sẽ ghi đè các khóa trong bản sao lưu và tải lại ngay."
               >
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center gap-3">
@@ -303,9 +303,9 @@ const SettingsPage: React.FC = () => {
                       onClick={() => void downloadDesktopEnv()}
                       disabled={desktopActionDisabled}
                       isLoading={isExportingEnv}
-                      loadingText="导出中..."
+                      loadingText="Đang xuất..."
                     >
-                      导出 .env
+                      Xuất .env
                     </Button>
                     <Button
                       type="button"
@@ -313,9 +313,9 @@ const SettingsPage: React.FC = () => {
                       onClick={beginDesktopImport}
                       disabled={desktopActionDisabled}
                       isLoading={isImportingEnv}
-                      loadingText="导入中..."
+                      loadingText="Đang nhập..."
                     >
-                      导入 .env
+                      Nhập .env
                     </Button>
                     <input
                       ref={desktopImportRef}
@@ -328,7 +328,7 @@ const SettingsPage: React.FC = () => {
                     />
                   </div>
                   <p className="text-xs leading-6 text-muted-text">
-                    导出内容仅包含当前已保存配置，不包含页面上尚未保存的本地草稿。
+                    Nội dung xuất chỉ bao gồm cấu hình đã lưu, không bao gồm bản nháp cục bộ chưa lưu trên trang.
                   </p>
                   {desktopActionError ? (
                     <ApiErrorAlert
@@ -338,15 +338,15 @@ const SettingsPage: React.FC = () => {
                     />
                   ) : null}
                   {!desktopActionError && desktopActionSuccess ? (
-                    <SettingsAlert title="操作成功" message={desktopActionSuccess} variant="success" />
+                    <SettingsAlert title="Thao tác thành công" message={desktopActionSuccess} variant="success" />
                   ) : null}
                 </div>
               </SettingsSectionCard>
             ) : null}
             {activeCategory === 'base' ? (
               <SettingsSectionCard
-                title="智能导入"
-                description="从图片、文件或剪贴板中提取股票代码，并合并到自选股列表。"
+                title="Nhập thông minh"
+                description="Trích xuất mã cổ phiếu từ ảnh, file hoặc clipboard, và hợp nhất vào danh sách theo dõi."
               >
                 <IntelligentImport
                   stockListValue={
@@ -363,8 +363,8 @@ const SettingsPage: React.FC = () => {
             ) : null}
             {activeCategory === 'ai_model' ? (
               <SettingsSectionCard
-                title="LLM 渠道与模型"
-                description="统一管理渠道协议、基础地址、API Key、主模型与回退模型。"
+                title="Kênh LLM & Mô hình"
+                description="Quản lý thống nhất giao thức kênh, địa chỉ cơ sở, API Key, mô hình chính và mô hình dự phòng."
               >
                 <LLMChannelEditor
                   items={rawActiveItems}
@@ -382,8 +382,8 @@ const SettingsPage: React.FC = () => {
             ) : null}
             {activeItems.length ? (
               <SettingsSectionCard
-                title="当前分类配置项"
-                description={getCategoryDescriptionZh(activeCategory as SystemConfigCategory, '') || '使用统一字段卡片维护当前分类的系统配置。'}
+                title="Mục cấu hình danh mục hiện tại"
+                description={getCategoryDescriptionZh(activeCategory as SystemConfigCategory, '') || 'Dùng thẻ trường thống nhất để quản lý cấu hình hệ thống của danh mục hiện tại.'}
               >
                 {activeItems.map((item) => (
                   <SettingsField
@@ -398,7 +398,7 @@ const SettingsPage: React.FC = () => {
               </SettingsSectionCard>
             ) : (
               <div className="settings-panel-muted rounded-[1.5rem] border p-5 text-sm text-secondary-text shadow-soft-card">
-                当前分类下暂无配置项。
+                Danh mục hiện tại chưa có mục cấu hình.
               </div>
             )}
           </section>
@@ -408,16 +408,16 @@ const SettingsPage: React.FC = () => {
       {toast ? (
         <div className="fixed bottom-5 right-5 z-50 w-[320px] max-w-[calc(100vw-24px)]">
           {toast.type === 'success'
-            ? <SettingsAlert title="操作成功" message={toast.message} variant="success" />
+            ? <SettingsAlert title="Thao tác thành công" message={toast.message} variant="success" />
             : <ApiErrorAlert error={toast.error} />}
         </div>
       ) : null}
       <ConfirmDialog
         isOpen={showImportConfirm}
-        title="导入会覆盖当前草稿"
-        message="当前页面还有未保存修改。继续导入会丢弃这些本地草稿，并立即用备份文件中的键值更新已保存配置。"
-        confirmText="继续导入"
-        cancelText="取消"
+        title="Nhập sẽ ghi đè bản nháp hiện tại"
+        message="Trang hiện tại còn có thay đổi chưa lưu. Tiếp tục nhập sẽ bỏ các bản nháp cục bộ này và ngay lập tức cập nhật cấu hình đã lưu bằng giá trị trong file sao lưu."
+        confirmText="Tiếp tục nhập"
+        cancelText="Hủy"
         onConfirm={() => {
           setShowImportConfirm(false);
           desktopImportRef.current?.click();

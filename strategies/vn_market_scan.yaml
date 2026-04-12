@@ -1,0 +1,165 @@
+# VN Market Scan Strategy / Quét tín hiệu thị trường Việt Nam
+# Systematic scanner that applies 7 signal filters across the Vietnamese stock market (HOSE, HNX, UPCOM).
+# This strategy is the entry gate — stocks passing >= 1 signal proceed to vn_recommendation_engine for scoring.
+
+name: vn_market_scan
+display_name: Quét tín hiệu thị trường VN
+description: >
+  Quét toàn thị trường chứng khoán Việt Nam (HOSE, HNX, UPCOM) theo 7 bộ lọc tín hiệu kỹ thuật.
+  Kết hợp phân tích khối lượng, đường trung bình, momentum và luân chuyển ngành để lọc ra
+  danh sách ứng viên tiềm năng cho phiên giao dịch hôm nay.
+category: framework
+core_rules: [1, 2, 3, 5, 6]
+required_tools:
+  - get_daily_history
+  - analyze_trend
+  - get_realtime_quote
+  - get_sector_rankings
+  - search_stock_news
+aliases: [quét thị trường, scan thị trường, lọc cổ phiếu, tìm cơ hội]
+default_active: true
+default_router: false
+default_priority: 5
+market_regimes: [trending_up, sideways, sector_hot]
+
+instructions: |
+  **Quét tín hiệu thị trường Việt Nam (VN Market Scan)**
+
+  ## Mục tiêu
+  Lọc từ toàn bộ thị trường ra danh sách ứng viên tiềm năng trong ngày dựa trên 7 tín hiệu kỹ thuật.
+  Mỗi tín hiệu là một bộ lọc độc lập — cổ phiếu chỉ cần thỏa mãn **ít nhất 1 tín hiệu** để vào danh sách ứng viên.
+
+  ---
+
+  ## Bước 0 — Phân tích bối cảnh thị trường (bắt buộc trước khi quét)
+
+  Sử dụng `get_sector_rankings` và `analyze_trend` cho VN-Index / HNX-Index:
+
+  | Trạng thái thị trường | Tiêu chí xác định | Chiến lược áp dụng |
+  |----------------------|-------------------|--------------------|
+  | **BULL** (Tăng)      | VN-Index trên MA20, MA20 dốc lên, > 60% mã tăng | Ưu tiên Tín hiệu 1, 4, 5 |
+  | **NEUTRAL** (Đi ngang) | VN-Index quanh MA20 ±2%, 40-60% mã tăng | Ưu tiên Tín hiệu 2, 3, 6 |
+  | **BEAR** (Giảm)      | VN-Index dưới MA20, MA20 dốc xuống | Ưu tiên Tín hiệu 7, giảm vị thế |
+  | **SECTOR_HOT** (Ngành nóng) | 1-2 ngành tăng đột biến > 3% | Ưu tiên Tín hiệu 6 |
+
+  Ghi nhận: trạng thái thị trường, thanh khoản tổng, top 3 ngành tăng, top 3 ngành giảm.
+
+  ---
+
+  ## Tín hiệu 1 — Phá vỡ tăng khối lượng (Volume Breakout)
+
+  Áp dụng chiến lược `volume_breakout` hiện có. Điều kiện lọc nhanh:
+  - Sử dụng `get_realtime_quote` → `volume_ratio` > **2.0**
+  - Giá đóng cửa > kháng cự gần nhất (kiểm tra qua `analyze_trend` → `resistance_levels`)
+  - Đóng cửa trong 30% trên của biên độ ngày (đóng cửa mạnh)
+  - Độ lệch MA5 < 8% (tránh đuổi giá quá cao)
+
+  **Pass điều kiện:** volume_ratio > 2 VÀ giá > kháng cự
+
+  ---
+
+  ## Tín hiệu 2 — Hồi về giảm khối lượng (Shrink Pullback)
+
+  Áp dụng chiến lược `shrink_pullback` hiện có. Điều kiện lọc nhanh:
+  - Sử dụng `analyze_trend` → xu hướng tăng (MA5 > MA10 > MA20)
+  - Sử dụng `get_realtime_quote` → `volume_ratio` < **0.7** (giảm khối lượng)
+  - Giá tiếp cận MA5 (sai số ≤ 1.5%) hoặc MA10 (sai số ≤ 2.5%)
+  - Không phá vỡ MA20 trong 5 phiên gần nhất
+
+  **Pass điều kiện:** xu hướng tăng VÀ volume_ratio < 0.7 VÀ giá gần MA5/MA10
+
+  ---
+
+  ## Tín hiệu 3 — Đáy tăng khối lượng (Bottom Volume Surge)
+
+  Áp dụng chiến lược `bottom_volume` hiện có. Điều kiện lọc nhanh:
+  - Sử dụng `get_daily_history` (30 ngày) → giảm từ đỉnh > **15%**
+  - Sử dụng `get_realtime_quote` → `volume_ratio` > **3.0** (bùng nổ khối lượng tại đáy)
+  - Nến K hôm nay: đóng cửa > mở cửa (nến xanh)
+  - Bóng nến dưới dài (shadow ≥ 1.5× thân nến) — dấu hiệu hỗ trợ mạnh
+
+  **Pass điều kiện:** giảm > 15% VÀ volume_ratio > 3 VÀ nến xanh
+
+  ---
+
+  ## Tín hiệu 4 — MA Golden Cross (Giao cắt tăng)
+
+  Áp dụng chiến lược `ma_golden_cross` hiện có. Điều kiện lọc nhanh:
+  - Sử dụng `analyze_trend` → MA5 cắt lên MA10 trong **3 phiên gần nhất**
+  - KLGD ngày cắt > 1.2× TB5 ngày (xác nhận khối lượng)
+  - Giá không quá xa điểm giao cắt (độ lệch < 5%)
+  - MACD histogram chuyển sang dương (bonus điểm, không bắt buộc)
+
+  **Pass điều kiện:** MA5 × MA10 giao cắt tăng ≤ 3 phiên trước VÀ KLGD > 1.2× TB
+
+  ---
+
+  ## Tín hiệu 5 — Sắp xếp đa tầng MA (Multi-MA Alignment)
+
+  Điều kiện lọc nhanh:
+  - Sử dụng `analyze_trend` → MA5 > MA10 > MA20 > MA60 (sắp xếp tăng hoàn hảo)
+  - MA20 có độ dốc dương (hướng lên)
+  - Giá > MA20, độ lệch MA5 trong khoảng 2–8%
+  - KLGD trung bình 5 ngày ≥ 1.0× TB20 ngày (khối lượng duy trì)
+
+  **Pass điều kiện:** MA5 > MA10 > MA20 VÀ giá trong khoảng 2–8% trên MA5
+
+  ---
+
+  ## Tín hiệu 6 — Cổ phiếu dẫn đầu ngành (Dragon Head)
+
+  Áp dụng chiến lược `dragon_head` hiện có. Điều kiện lọc nhanh:
+  - Sử dụng `get_sector_rankings` → ngành của mã nằm trong **top 3** tăng hôm nay
+  - Sử dụng `get_realtime_quote` → mức tăng của mã > trung bình ngành + **2%**
+  - Tỷ lệ luân chuyển > 3% (có dòng tiền tích cực)
+  - Là mã tăng đầu tiên trong nhóm ngành (dẫn dắt, không chạy theo)
+
+  **Pass điều kiện:** ngành top 3 VÀ mã tăng vượt ngành > 2%
+
+  ---
+
+  ## Tín hiệu 7 — Đáy cảm xúc (Emotion Bottom)
+
+  Áp dụng chiến lược `emotion_cycle` hiện có. Điều kiện lọc nhanh:
+  - Sử dụng `get_daily_history` → tỷ lệ luân chuyển 20 ngày ở mức thấp nhất trong **52 tuần**
+  - KLGD hiện tại < 50% KLGD trung bình 60 ngày
+  - Sử dụng `search_stock_news` → tin tức trung tính/tiêu cực (không có catalyst tích cực)
+  - Giá tiếp cận hoặc dưới MA20 nhưng **chưa** phá vỡ hỗ trợ quan trọng
+
+  **Pass điều kiện:** luân chuyển ở đáy 52 tuần VÀ KLGD < 50% TB60
+
+  ---
+
+  ## Bộ lọc loại trừ bắt buộc (Mandatory Exclusions)
+
+  Loại bỏ ngay cổ phiếu có bất kỳ điều kiện nào sau đây — **không ngoại lệ**:
+
+  ```
+  ❌ Tin xấu trọng yếu:   search_stock_news → thua lỗ đột biến, vi phạm, điều tra, hủy niêm yết
+  ❌ Thanh khoản quá thấp: KLGD trung bình 20 ngày < 100,000 cổ phiếu/ngày
+  ❌ Biến động bất thường: Giá tăng/giảm > 15% trong 1 phiên mà không có catalyst rõ ràng
+  ❌ Phá MA50 mạnh:        Giá dưới MA50 hơn 10% trong xu hướng giảm dài hạn
+  ❌ P/E quá cao:          P/E > 50x trong trạng thái thị trường BEAR hoặc NEUTRAL
+  ```
+
+  ---
+
+  ## Đầu ra mong đợi
+
+  Sau khi quét, trả về:
+  1. **Trạng thái thị trường hôm nay**: BULL / NEUTRAL / BEAR / SECTOR_HOT
+  2. **Top ngành**: 3 ngành tăng mạnh nhất + 3 ngành yếu nhất
+  3. **Danh sách ứng viên**: Mỗi mã cùng:
+     - Tín hiệu kích hoạt (1–7)
+     - Mức độ tin cậy tín hiệu (Mạnh / Trung bình / Yếu)
+     - Ghi chú ngắn về điểm nổi bật
+  4. **Số lượng khuyến nghị**: Tối đa 10 mã/ngày, ưu tiên tín hiệu mạnh nhất
+
+  Điều chỉnh điểm (để truyền vào vn_recommendation_engine):
+  - Tín hiệu 1 (Phá vỡ khối lượng): base_signal_score = 70
+  - Tín hiệu 2 (Hồi về giảm KL):    base_signal_score = 65
+  - Tín hiệu 3 (Đáy tăng KL):       base_signal_score = 60
+  - Tín hiệu 4 (MA Golden Cross):    base_signal_score = 68
+  - Tín hiệu 5 (Sắp xếp đa tầng):   base_signal_score = 62
+  - Tín hiệu 6 (Cổ phiếu dẫn đầu):  base_signal_score = 72
+  - Tín hiệu 7 (Đáy cảm xúc):       base_signal_score = 58

@@ -4,6 +4,10 @@ import { Badge, Select, Input } from '../common';
 import type { ConfigValidationIssue, SystemConfigFieldSchema, SystemConfigItem } from '../../types/systemConfig';
 import { getFieldDescriptionZh, getFieldTitleZh } from '../../utils/systemConfigI18n';
 import { cn } from '../../utils/cn';
+import { StockChipInput } from './StockChipInput';
+
+/** Keys that should render as chip inputs instead of plain text */
+const CHIP_INPUT_KEYS = new Set(['STOCK_LIST', 'STOCK_POOL', 'WATCHLIST']);
 
 function normalizeSelectOptions(options: SystemConfigFieldSchema['options'] = []) {
   return options.map((option) => {
@@ -59,6 +63,17 @@ function renderFieldControl(
   const controlType = schema?.uiControl ?? 'text';
   const isMultiValue = isMultiValueField(item);
 
+  // Stock pool chip input — overrides default textarea/text for known list keys
+  if (CHIP_INPUT_KEYS.has(item.key)) {
+    return (
+      <StockChipInput
+        value={value}
+        onChange={onChange}
+        disabled={disabled || !schema?.isEditable}
+      />
+    );
+  }
+
   if (controlType === 'textarea') {
     return (
       <textarea
@@ -79,7 +94,7 @@ function renderFieldControl(
           onChange={onChange}
           options={normalizeSelectOptions(schema.options)}
           disabled={disabled || !schema.isEditable}
-          placeholder="请选择"
+          placeholder="Chọn..."
         />
       );
   }
@@ -95,7 +110,7 @@ function renderFieldControl(
           disabled={disabled || !schema?.isEditable}
           onChange={(event) => onChange(event.target.checked ? 'true' : 'false')}
         />
-        <span className="text-sm text-secondary-text">{checked ? '已启用' : '未启用'}</span>
+        <span className="text-sm text-secondary-text">{checked ? 'Đã bật' : 'Chưa bật'}</span>
       </label>
     );
   }
@@ -136,7 +151,7 @@ function renderFieldControl(
                   onChange(serializeMultiValues(nextValues.length ? nextValues : ['']));
                 }}
               >
-                删除
+                Xóa
               </button>
             </div>
           ))}
@@ -148,7 +163,7 @@ function renderFieldControl(
               disabled={disabled || !schema?.isEditable}
               onClick={() => onChange(serializeMultiValues([...values, '']))}
             >
-              添加 Key
+              Thêm Key
             </button>
           </div>
         </div>
@@ -212,12 +227,12 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({
         </label>
         {schema?.isSensitive ? (
           <Badge variant="history" size="sm">
-            敏感
+            Nhạy cảm
           </Badge>
         ) : null}
         {!schema?.isEditable ? (
           <Badge variant="default" size="sm">
-            只读
+            Chỉ đọc
           </Badge>
         ) : null}
       </div>
@@ -242,8 +257,8 @@ export const SettingsField: React.FC<SettingsFieldProps> = ({
 
       {schema?.isSensitive ? (
         <p className="mt-3 text-[11px] leading-5 text-secondary-text">
-          敏感内容默认隐藏，可点击眼睛图标查看明文。
-          {isMultiValue ? ' 支持添加多个输入框进行增删。' : ''}
+          Nội dung nhạy cảm được ẩn mặc định, nhấn biểu tượng mắt để xem.
+          {isMultiValue ? ' Hỗ trợ thêm nhiều ô nhập liệu.' : ''}
         </p>
       ) : null}
 

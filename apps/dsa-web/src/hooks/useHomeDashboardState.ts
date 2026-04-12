@@ -33,6 +33,8 @@ export function useHomeDashboardState() {
       toggleHistorySelection: state.toggleHistorySelection,
       toggleSelectAllVisible: state.toggleSelectAllVisible,
       deleteSelectedHistory: state.deleteSelectedHistory,
+      notify: state.notify,
+      setNotify: state.setNotify,
       submitAnalysis: state.submitAnalysis,
       syncTaskCreated: state.syncTaskCreated,
       syncTaskUpdated: state.syncTaskUpdated,

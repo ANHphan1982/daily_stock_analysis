@@ -20,7 +20,10 @@ from api.v1.schemas.stocks import (
     ExtractFromImageResponse,
     ExtractItem,
     KLineData,
+    OHLCVResponse,
     StockHistoryResponse,
+    StockNewsItem,
+    StockNewsResponse,
     StockQuote,
 )
 from api.v1.schemas.common import ErrorResponse
@@ -386,4 +389,132 @@ def get_stock_history(
                 "error": "internal_error",
                 "message": f"获取历史行情失败: {str(e)}"
             }
+        )
+
+
+_PERIOD_TO_DAYS: dict[str, int] = {
+    "7d": 7,
+    "30d": 30,
+    "90d": 90,
+    "1y": 365,
+    "730d": 730,    # 1W candles: ~2 years of daily data
+    "1825d": 1825,  # 1M candles: ~5 years of daily data
+}
+
+
+@router.get(
+    "/{stock_code}/ohlcv",
+    response_model=OHLCVResponse,
+    responses={
+        200: {"description": "Dữ liệu nến OHLCV"},
+        422: {"description": "Tham số period không hợp lệ", "model": ErrorResponse},
+        500: {"description": "Lỗi server", "model": ErrorResponse},
+    },
+    summary="Lấy dữ liệu nến OHLCV cho đồ thị nến",
+    description=(
+        "Trả về chuỗi nến OHLCV (open/high/low/close/volume) theo khoảng thời gian. "
+        "Dùng cho đồ thị nến trên dashboard. "
+        "period hợp lệ: 7d, 30d (mặc định), 90d, 1y."
+    ),
+)
+def get_stock_ohlcv(
+    stock_code: str,
+    period: str = Query("30d", description="Khoảng thời gian: 7d | 30d | 90d | 1y"),
+) -> OHLCVResponse:
+    """Lấy dữ liệu OHLCV cho đồ thị nến."""
+    if period not in _PERIOD_TO_DAYS:
+        valid = ", ".join(_PERIOD_TO_DAYS)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_period",
+                "message": f"period '{period}' không hợp lệ. Giá trị hợp lệ: {valid}",
+            },
+        )
+
+    days = _PERIOD_TO_DAYS[period]
+
+    try:
+        service = StockService()
+        result = service.get_history_data(stock_code=stock_code, period="daily", days=days)
+
+        data = [
+            KLineData(
+                date=item["date"],
+                open=item["open"],
+                high=item["high"],
+                low=item["low"],
+                close=item["close"],
+                volume=item.get("volume"),
+                amount=item.get("amount"),
+                change_percent=item.get("change_percent"),
+            )
+            for item in result.get("data", [])
+        ]
+
+        return OHLCVResponse(
+            stock_code=stock_code,
+            stock_name=result.get("stock_name"),
+            period=period,
+            data=data,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Lấy OHLCV {stock_code} thất bại: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "internal_error",
+                "message": f"Lấy dữ liệu OHLCV thất bại: {str(e)}",
+            },
+        )
+
+
+@router.get(
+    "/{stock_code}/news",
+    response_model=StockNewsResponse,
+    responses={
+        200: {"description": "Danh sách tin tức liên quan đến mã cổ phiếu"},
+        500: {"description": "Lỗi server", "model": ErrorResponse},
+    },
+    summary="Lấy tin tức cổ phiếu từ báo Việt Nam",
+    description=(
+        "Lấy tin tức mới nhất liên quan đến mã cổ phiếu từ các nguồn uy tín: "
+        "CafeF, Vietstock (FiinGroup/VCI), Tin nhanh chứng khoán, VnEconomy."
+    ),
+)
+def get_stock_news(
+    stock_code: str,
+    limit: int = Query(15, ge=1, le=50, description="Số bài tối đa trả về"),
+) -> StockNewsResponse:
+    """Lấy tin tức cổ phiếu từ các báo tài chính uy tín Việt Nam."""
+    try:
+        service = StockService()
+        result = service.get_stock_news(stock_code=stock_code, max_results=limit)
+        items = [
+            StockNewsItem(
+                title=it["title"],
+                url=it["url"],
+                source=it["source"],
+                snippet=it.get("snippet") or None,
+                published_date=it.get("published_date"),
+            )
+            for it in result.get("items", [])
+        ]
+        return StockNewsResponse(
+            stock_code=stock_code,
+            items=items,
+            total=len(items),
+            sources=result.get("sources", []),
+        )
+    except Exception as e:
+        logger.error(f"Lấy tin tức {stock_code} thất bại: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "internal_error",
+                "message": f"Lấy tin tức thất bại: {str(e)}",
+            },
         )

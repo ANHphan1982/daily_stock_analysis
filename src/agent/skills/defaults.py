@@ -23,39 +23,39 @@ LEGACY_STRATEGY_AGENT_PREFIX = "strategy_"
 SKILL_CONSENSUS_AGENT_NAME = "skill_consensus"
 LEGACY_STRATEGY_CONSENSUS_AGENT_NAME = "strategy_consensus"
 
-CORE_TRADING_SKILL_POLICY_ZH = """## 默认技能基线（必须严格遵守）
+CORE_TRADING_SKILL_POLICY_ZH = """## Đường cơ sở kỹ năng mặc định (phải tuân thủ nghiêm ngặt)
 
-当前激活的 skills 可以补充细化分析视角，但默认风险控制和交易节奏必须遵守以下基线。
+Các kỹ năng đang kích hoạt có thể bổ sung và tinh chỉnh góc nhìn phân tích, nhưng kiểm soát rủi ro mặc định và nhịp giao dịch phải tuân theo đường cơ sở sau.
 
-### 1. 严进策略（不追高）
-- **绝对不追高**：当股价偏离 MA5 超过 5% 时，坚决不买入
-- 乖离率 < 2%：最佳买点区间
-- 乖离率 2-5%：可小仓介入
-- 乖离率 > 5%：严禁追高！直接判定为"观望"
+### 1. Chiến lược vào lệnh nghiêm ngặt (không đuổi giá cao)
+- **Tuyệt đối không đuổi giá cao**: khi giá cổ phiếu lệch khỏi MA5 hơn 5%, kiên quyết không mua vào
+- Độ lệch < 2%: vùng mua tốt nhất
+- Độ lệch 2-5%: có thể vào lệnh nhỏ
+- Độ lệch > 5%: nghiêm cấm đuổi giá cao! Trực tiếp phán định là "quan sát"
 
-### 2. 趋势交易（顺势而为）
-- **多头排列必须条件**：MA5 > MA10 > MA20
-- 只做多头排列的股票，空头排列坚决不碰
-- 均线发散上行优于均线粘合
+### 2. Giao dịch theo xu hướng (thuận chiều thị trường)
+- **Điều kiện bắt buộc sắp xếp tăng**: MA5 > MA10 > MA20
+- Chỉ giao dịch cổ phiếu có sắp xếp tăng, kiên quyết không động vào cổ phiếu sắp xếp giảm
+- Đường MA diverge hướng lên tốt hơn đường MA hội tụ
 
-### 3. 效率优先（筹码结构）
-- 关注筹码集中度：90%集中度 < 15% 表示筹码集中
-- 获利比例分析：70-90% 获利盘时需警惕获利回吐
-- 平均成本与现价关系：现价高于平均成本 5-15% 为健康
+### 3. Ưu tiên hiệu quả (cấu trúc chip)
+- Chú ý mức độ tập trung chip: độ tập trung 90% < 15% là chip tập trung
+- Phân tích tỷ lệ lợi nhuận: khi tỷ lệ có lãi 70-90% cần cảnh giác với áp lực chốt lãi
+- Mối quan hệ giữa giá hiện tại và chi phí bình quân: giá hiện tại cao hơn chi phí bình quân 5-15% là lành mạnh
 
-### 4. 买点偏好（回踩支撑）
-- **最佳买点**：缩量回踩 MA5 获得支撑
-- **次优买点**：回踩 MA10 获得支撑
-- **观望情况**：跌破 MA20 时观望
+### 4. Ưu tiên điểm mua (hồi về hỗ trợ)
+- **Điểm mua tốt nhất**: giảm khối lượng hồi về MA5 được hỗ trợ
+- **Điểm mua thứ hai**: hồi về MA10 được hỗ trợ
+- **Trường hợp quan sát**: khi phá vỡ MA20 thì quan sát
 
-### 5. 风险排查重点
-- 减持公告、业绩预亏、监管处罚、行业政策利空、大额解禁
+### 5. Trọng tâm kiểm tra rủi ro
+- Thông báo bán ra, cảnh báo lợi nhuận, xử phạt quản lý, chính sách ngành bất lợi, giải phóng cổ phần lớn
 
-### 6. 估值关注（PE/PB）
-- PE 明显偏高时需在风险点中说明
+### 6. Chú ý định giá (P/E, P/B)
+- Khi P/E cao rõ rệt cần nêu trong phần điểm rủi ro
 
-### 7. 强势趋势股放宽
-- 强势趋势股可适当放宽乖离率要求，轻仓追踪但需设止损
+### 7. Nới lỏng cho cổ phiếu xu hướng mạnh
+- Cổ phiếu xu hướng mạnh có thể nới lỏng yêu cầu độ lệch một chút, theo dõi lệnh nhỏ nhưng phải đặt dừng lỗ
 """
 
 TECHNICAL_SKILL_RULES_EN = """## Default Skill Baseline

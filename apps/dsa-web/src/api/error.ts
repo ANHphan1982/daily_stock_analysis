@@ -458,8 +458,8 @@ export function parseApiError(error: unknown): ParsedApiError {
 
   if (payloadText || status) {
     return createParsedApiError({
-      title: '请求失败',
-      message: payloadText ?? `请求未成功完成（HTTP ${status}）。`,
+      title: 'Yêu cầu thất bại',
+      message: payloadText ?? `Yêu cầu không thành công (HTTP ${status}).`,
       rawMessage,
       status,
       category: 'http_error',
@@ -467,7 +467,7 @@ export function parseApiError(error: unknown): ParsedApiError {
   }
 
   return createParsedApiError({
-    title: '请求失败',
+    title: 'Yêu cầu thất bại',
     message: rawMessage,
     rawMessage,
     status,
@@ -475,7 +475,7 @@ export function parseApiError(error: unknown): ParsedApiError {
   });
 }
 
-export function toApiErrorMessage(error: unknown, fallback = '请求未成功完成，请稍后重试。'): string {
+export function toApiErrorMessage(error: unknown, fallback = 'Yêu cầu không thành công, vui lòng thử lại.'): string {
   const parsed = getParsedApiError(error);
   const message = formatParsedApiError(parsed);
   return message.trim() || fallback;

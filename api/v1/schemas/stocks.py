@@ -94,12 +94,12 @@ class ExtractFromImageResponse(BaseModel):
 
 class StockHistoryResponse(BaseModel):
     """股票历史行情响应"""
-    
+
     stock_code: str = Field(..., description="股票代码")
     stock_name: Optional[str] = Field(None, description="股票名称")
     period: str = Field(..., description="K 线周期")
     data: List[KLineData] = Field(default_factory=list, description="K 线数据列表")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -109,3 +109,41 @@ class StockHistoryResponse(BaseModel):
                 "data": []
             }
         }
+
+
+class OHLCVResponse(BaseModel):
+    """OHLCV candlestick data response"""
+
+    stock_code: str = Field(..., description="Mã cổ phiếu")
+    stock_name: Optional[str] = Field(None, description="Tên cổ phiếu")
+    period: str = Field(..., description="Khoảng thời gian: 7d | 30d | 90d | 1y")
+    data: List[KLineData] = Field(default_factory=list, description="Danh sách nến OHLCV")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "stock_code": "VNM",
+                "stock_name": "Vinamilk",
+                "period": "30d",
+                "data": [],
+            }
+        }
+
+
+class StockNewsItem(BaseModel):
+    """Một bài tin tức liên quan đến cổ phiếu"""
+
+    title: str = Field(..., description="Tiêu đề bài viết")
+    url: str = Field(..., description="Đường dẫn bài viết")
+    source: str = Field(..., description="Nguồn tin (vd: cafef.vn)")
+    snippet: Optional[str] = Field(None, description="Tóm tắt nội dung")
+    published_date: Optional[str] = Field(None, description="Ngày đăng (YYYY-MM-DD)")
+
+
+class StockNewsResponse(BaseModel):
+    """Danh sách tin tức theo mã cổ phiếu"""
+
+    stock_code: str = Field(..., description="Mã cổ phiếu")
+    items: List[StockNewsItem] = Field(default_factory=list, description="Danh sách bài viết")
+    total: int = Field(0, description="Tổng số bài viết trả về")
+    sources: List[str] = Field(default_factory=list, description="Các nguồn tin đã sử dụng")

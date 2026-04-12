@@ -713,6 +713,10 @@ class StockAnalysisPipeline:
             result = self._agent_result_to_analysis_result(agent_result, code, stock_name, report_type, query_id)
             if result:
                 result.query_id = query_id
+                # Fill price snapshot from realtime_quote (mirrors non-agent path Step 7.5)
+                if realtime_quote:
+                    result.current_price = getattr(realtime_quote, 'price', None)
+                    result.change_pct = getattr(realtime_quote, 'change_pct', None)
             # Agent weak integrity: placeholder fill only, no LLM retry
             if result and getattr(self.config, "report_integrity_enabled", False):
                 from src.analyzer import check_content_integrity, apply_placeholder_fill
@@ -741,7 +745,7 @@ class StockAnalysisPipeline:
                     news_response = self.search_service.search_stock_news(
                         stock_code=code,
                         stock_name=resolved_stock_name,
-                        max_results=5
+                        max_results=4
                     )
                     if news_response.success and news_response.results:
                         query_context = self._build_query_context(query_id=query_id)

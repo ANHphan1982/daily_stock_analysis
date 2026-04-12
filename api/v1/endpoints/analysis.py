@@ -68,7 +68,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_SUPPORTED_FREE_TEXT_RE = re.compile(r"^[A-Za-z0-9.*\-+\u3400-\u9fff\s]+$")
+_SUPPORTED_FREE_TEXT_RE = re.compile(r"^[A-Za-z0-9.*\-+:\u3400-\u9fff\s]+$")
 
 
 def _invalid_analysis_input_error() -> HTTPException:
@@ -76,7 +76,7 @@ def _invalid_analysis_input_error() -> HTTPException:
         status_code=400,
         detail={
             "error": "validation_error",
-            "message": "请输入有效的股票代码或股票名称",
+            "message": "Vui long nhap ma co phieu hop le (vi du: VN:VIC, AAPL, 600519)",
         },
     )
 

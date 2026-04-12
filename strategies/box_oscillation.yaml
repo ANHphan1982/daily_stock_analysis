@@ -2,68 +2,68 @@
 # Buy at box support, sell at box resistance, profit from range-bound oscillation.
 
 name: box_oscillation
-display_name: 箱体震荡
-description: 识别价格箱体区间，在箱底买入、箱顶减仓，适用于横盘震荡行情。
+display_name: Dao động trong vùng
+description: Nhận diện vùng giá dao động trong hộp, mua tại đáy hộp và giảm vị thế tại đỉnh hộp, áp dụng cho thị trường đi ngang.
 category: framework
 core_rules: [1, 2, 3]
 required_tools:
   - get_daily_history
   - analyze_trend
   - get_realtime_quote
-aliases: [箱体, 箱体震荡]
+aliases: [hộp giá, dao động trong vùng]
 default_priority: 50
 market_regimes: [sideways]
 
 instructions: |
-  **箱体震荡战法（Box Range Trading Strategy）**
+  **Dao động trong vùng（Box Range Trading Strategy）**
 
-  核心逻辑：箱体内部价格在阻力位与支撑位之间反复震荡，
-  "贴着支撑买、接近阻力卖"，通过波段操作获取区间收益。
+  Logic cốt lõi: giá bên trong hộp dao động qua lại giữa mức kháng cự và hỗ trợ,
+  "mua sát hỗ trợ, bán gần kháng cự", thu lợi nhuận theo sóng trong vùng.
 
-  ## 分析步骤
+  ## Các bước phân tích
 
-  ### 1. 箱体识别
-  使用 `get_daily_history` 获取近 60~120 日数据：
+  ### 1. Nhận diện hộp giá
+  Sử dụng `get_daily_history` lấy dữ liệu 60~120 ngày gần nhất:
 
-  - **箱体顶部（阻力位）**：近期多次触碰但未有效突破的高点连线。
-    通常为 20~60 日内3次以上的高点聚集区域。
-  - **箱体底部（支撑位）**：近期多次下探但未有效跌破的低点连线。
-  - 箱体有效性：顶部和底部各至少触碰 2~3 次方可确认。
-  - 使用 `analyze_trend` 的 support_levels / resistance_levels 辅助定位。
+  - **Đỉnh hộp（kháng cự）**: đường nối các đỉnh chạm nhiều lần nhưng không phá vỡ hiệu quả gần đây.
+    Thường là vùng tập trung đỉnh xuất hiện 3 lần trở lên trong 20~60 ngày.
+  - **Đáy hộp（hỗ trợ）**: đường nối các đáy thăm dò nhiều lần nhưng không giảm hiệu quả gần đây.
+  - Tính hợp lệ của hộp: đỉnh và đáy mỗi bên phải chạm ít nhất 2~3 lần mới xác nhận.
+  - Sử dụng support_levels / resistance_levels của `analyze_trend` hỗ trợ định vị.
 
-  ### 2. 当前位置判断
-  使用 `get_realtime_quote` 获取现价，与箱体边界对比：
+  ### 2. Xác định vị thế hiện tại
+  Sử dụng `get_realtime_quote` lấy giá hiện tại, so sánh với biên hộp:
 
-  - **箱底区域**（距支撑 ≤5%）：买入/加仓信号，止损设箱底下方 3%。
-  - **箱中区域**（箱体中间 1/3）：观望，不主动操作。
-  - **箱顶区域**（距阻力 ≤5%）：减仓/止盈信号，无需追高。
+  - **Vùng đáy hộp**（cách hỗ trợ ≤5%）: tín hiệu mua/thêm vị thế, dừng lỗ đặt dưới đáy hộp 3%.
+  - **Vùng giữa hộp**（1/3 giữa của hộp）: quan sát, không chủ động giao dịch.
+  - **Vùng đỉnh hộp**（cách kháng cự ≤5%）: tín hiệu giảm vị thế/chốt lời, không đuổi theo đà tăng.
 
-  ### 3. 量能辅助判断
-  - **箱底放量企稳**：支撑有效的强信号，可较重仓。
-  - **箱顶缩量滞涨**：阻力有效的卖出信号。
-  - **箱体突破（放量超过均量2倍以上）**：
-    - 向上有效突破 → 转为多头趋势策略，新目标 = 箱体高度延伸。
-    - 向下有效跌破 → 离场等待，原支撑转阻力。
+  ### 3. Khối lượng hỗ trợ phán đoán
+  - **Đáy hộp tăng khối lượng ổn định**: tín hiệu mạnh hỗ trợ hiệu quả, có thể giữ vị thế lớn hơn.
+  - **Đỉnh hộp giảm khối lượng đứng giá**: tín hiệu bán kháng cự hiệu quả.
+  - **Phá vỡ hộp（khối lượng vượt 2 lần khối lượng trung bình）**:
+    - Phá vỡ lên trên hiệu quả → chuyển sang chiến lược xu hướng tăng, mục tiêu mới = mở rộng chiều cao hộp.
+    - Giảm xuống dưới hiệu quả → thoát ra chờ đợi, hỗ trợ cũ trở thành kháng cự.
 
-  ### 4. 箱体宽度与预期收益
-  - 计算箱体宽度：(顶部 - 底部) / 底部 × 100%。
-  - 宽度 < 5%：操作空间过小，不建议参与。
-  - 宽度 5%~15%：标准箱体，波段操作可行。
-  - 宽度 > 15%：大箱体，可做更大波段。
+  ### 4. Chiều rộng hộp và lợi nhuận kỳ vọng
+  - Tính chiều rộng hộp: (đỉnh - đáy) / đáy × 100%.
+  - Chiều rộng < 5%: không gian giao dịch quá hẹp, không nên tham gia.
+  - Chiều rộng 5%~15%: hộp tiêu chuẩn, giao dịch theo sóng khả thi.
+  - Chiều rộng > 15%: hộp lớn, có thể giao dịch sóng lớn hơn.
 
-  ### 5. 假突破识别
-  - 单日盘中触及阻力/支撑后快速回撤，收盘回到箱内 → 假突破，维持箱体操作。
-  - 连续两日收盘突破箱体边界，且量能放大 → 真突破，修改策略。
+  ### 5. Nhận diện phá vỡ giả
+  - Trong ngày giá chạm kháng cự/hỗ trợ rồi rút nhanh, đóng cửa trở lại trong hộp → phá vỡ giả, duy trì giao dịch trong hộp.
+  - Đóng cửa liên tiếp hai ngày vượt biên hộp, khối lượng tăng → phá vỡ thật, điều chỉnh chiến lược.
 
-  ### 6. 输出要求
-  - 明确给出箱体顶部价位和底部价位。
-  - 当前价格所处区间（箱底/箱中/箱顶）。
-  - 若价格已突破，说明突破方向及新目标。
-  - 建议仓位与止损位。
+  ### 6. Yêu cầu đầu ra
+  - Nêu rõ mức giá đỉnh hộp và đáy hộp.
+  - Vùng giá hiện tại（đáy hộp/giữa hộp/đỉnh hộp）.
+  - Nếu giá đã phá vỡ, nêu hướng phá vỡ và mục tiêu mới.
+  - Khuyến nghị vị thế và mức dừng lỗ.
 
-  评分调整建议：
-  - 箱底企稳 + 缩量：`sentiment_score +10`
-  - 箱底放量攻顶：`sentiment_score +12`
-  - 箱体向上有效突破：`sentiment_score +15，转趋势策略`
-  - 处于箱顶区域：`sentiment_score -5（不追高）`
-  - 箱底有效跌破：`sentiment_score -15，离场`
+  Khuyến nghị điều chỉnh điểm:
+  - Đáy hộp ổn định + giảm khối lượng: `sentiment_score +10`
+  - Đáy hộp tăng khối lượng tiến lên đỉnh: `sentiment_score +12`
+  - Phá vỡ lên trên hộp hiệu quả: `sentiment_score +15，chuyển chiến lược xu hướng`
+  - Đang ở vùng đỉnh hộp: `sentiment_score -5（không đuổi theo đà tăng）`
+  - Đáy hộp giảm hiệu quả: `sentiment_score -15，thoát ra`

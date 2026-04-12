@@ -16,7 +16,7 @@ interface TaskItemProps {
 const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
   const isPending = task.status === 'pending';
   const isProcessing = task.status === 'processing';
-  const statusLabel = isProcessing ? '分析中' : '等待中';
+  const statusLabel = isProcessing ? 'Đang phân tích' : 'Đang chờ';
   const statusClassName = isProcessing
     ? 'border home-task-status-processing'
     : 'bg-subtle text-muted-text border border-subtle';
@@ -76,7 +76,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task }) => {
       <div className="flex-shrink-0">
         <span
           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusClassName}`}
-          aria-label={`任务状态：${statusLabel}`}
+          aria-label={`Trạng thái tác vụ: ${statusLabel}`}
         >
           {statusLabel}
         </span>
@@ -106,10 +106,10 @@ interface TaskPanelProps {
 export const TaskPanel: React.FC<TaskPanelProps> = ({
   tasks,
   visible = true,
-  title = '分析任务',
+  title = 'Tác vụ phân tích',
   className = '',
 }) => {
-  // 筛选活跃任务（pending 和 processing）
+  // 筛选活跃任务(pending 和 processing)
   const activeTasks = tasks.filter(
     (t) => t.status === 'pending' || t.status === 'processing'
   );
@@ -149,10 +149,10 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
               {processingCount > 0 && (
                 <span className="flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-cyan animate-pulse" />
-                  {processingCount} 进行中
+                  {processingCount} đang chạy
                 </span>
               )}
-              {pendingCount > 0 ? <span>{pendingCount} 等待中</span> : null}
+              {pendingCount > 0 ? <span>{pendingCount} đang chờ</span> : null}
             </div>
           )}
         />

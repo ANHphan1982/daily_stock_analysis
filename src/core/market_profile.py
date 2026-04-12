@@ -53,9 +53,24 @@ US_PROFILE = MarketProfile(
     has_sector_rankings=False,
 )
 
+VN_PROFILE = MarketProfile(
+    region="vn",
+    mood_index_code="VNINDEX",
+    news_queries=[
+        "VN-Index thi truong chung khoan Viet Nam",
+        "co phieu Viet Nam phan tich",
+        "VNINDEX VN30 HNX",
+    ],
+    prompt_index_hint="Phan tich xu huong VN-Index, VN30, HNX-Index va UPCOM",
+    has_market_stats=False,
+    has_sector_rankings=False,
+)
+
 
 def get_profile(region: str) -> MarketProfile:
     """根据 region 返回对应的 MarketProfile"""
     if region == "us":
         return US_PROFILE
+    if region == "vn":
+        return VN_PROFILE
     return CN_PROFILE

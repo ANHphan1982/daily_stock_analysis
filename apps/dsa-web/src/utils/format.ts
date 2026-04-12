@@ -24,6 +24,16 @@ export const formatDate = (value?: string): string => {
   }).format(date);
 };
 
+/** Compact "dd/MM" format for use in tight UI spaces like history sidebar */
+export const formatDateCompact = (value?: string): string => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}`;
+};
+
 export const toDateInputValue = (date: Date): string => {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');

@@ -12,6 +12,21 @@ export type ExtractFromImageResponse = {
   rawText?: string;
 };
 
+export type StockNewsItem = {
+  title: string;
+  url: string;
+  source: string;
+  snippet?: string | null;
+  published_date?: string | null;
+};
+
+export type StockNewsResponse = {
+  stock_code: string;
+  items: StockNewsItem[];
+  total: number;
+  sources: string[];
+};
+
 export const stocksApi = {
   async extractFromImage(file: File): Promise<ExtractFromImageResponse> {
     const formData = new FormData();
@@ -33,6 +48,13 @@ export const stocksApi = {
       items: data.items,
       rawText: data.raw_text,
     };
+  },
+
+  async fetchStockNews(stockCode: string, limit = 15): Promise<StockNewsResponse> {
+    const response = await apiClient.get(`/api/v1/stocks/${encodeURIComponent(stockCode)}/news`, {
+      params: { limit },
+    });
+    return response.data as StockNewsResponse;
   },
 
   async parseImport(file?: File, text?: string): Promise<ExtractFromImageResponse> {

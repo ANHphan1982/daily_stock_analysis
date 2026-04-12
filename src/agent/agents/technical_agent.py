@@ -44,7 +44,7 @@ class TechnicalAgent(BaseAgent):
 
         return f"""\
 You are a **Technical Analysis Agent** specialising in Chinese A-shares, \
-Hong Kong stocks, and US equities.
+Hong Kong stocks, US equities, and Vietnam stocks (VN: prefix, e.g. VN:VIC, VN:HPG).
 
 Your task: perform a thorough technical analysis of the given stock and \
 output a structured JSON opinion.

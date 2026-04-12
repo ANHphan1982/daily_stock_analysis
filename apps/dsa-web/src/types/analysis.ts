@@ -37,11 +37,11 @@ export interface ReportMeta {
 
 /** Sentiment label */
 export type SentimentLabel =
-  | '极度悲观'
-  | '悲观'
-  | '中性'
-  | '乐观'
-  | '极度乐观'
+  | 'Rất bi quan'
+  | 'Bi quan'
+  | 'Trung tính'
+  | 'Lạc quan'
+  | 'Rất lạc quan'
   | 'Very Bearish'
   | 'Bearish'
   | 'Neutral'
@@ -198,6 +198,8 @@ export interface HistoryItem {
   sentimentScore?: number;
   operationAdvice?: string;
   createdAt: string;
+  currentPrice?: number;
+  changePct?: number;
 }
 
 /** History list response */
@@ -253,11 +255,11 @@ export const getSentimentLabel = (score: number, language: ReportLanguage = 'zh'
     if (score <= 80) return 'Bullish';
     return 'Very Bullish';
   }
-  if (score <= 20) return '极度悲观';
-  if (score <= 40) return '悲观';
-  if (score <= 60) return '中性';
-  if (score <= 80) return '乐观';
-  return '极度乐观';
+  if (score <= 20) return 'Rất bi quan';
+  if (score <= 40) return 'Bi quan';
+  if (score <= 60) return 'Trung tính';
+  if (score <= 80) return 'Lạc quan';
+  return 'Rất lạc quan';
 };
 
 /** Get sentiment color by score */

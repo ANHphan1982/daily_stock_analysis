@@ -1,49 +1,49 @@
 # Default Bull Trend Strategy / 默认多头趋势
 
 name: bull_trend
-display_name: 默认多头趋势
-description: 默认个股分析优先策略，识别多头排列、趋势延续与回踩低吸机会。
+display_name: Xu hướng tăng mặc định
+description: Chiến lược phân tích cổ phiếu ưu tiên mặc định, nhận diện sắp xếp tăng, xu hướng tiếp diễn và cơ hội mua hồi về.
 category: trend
 core_rules: [1, 2, 3]
 required_tools:
   - get_daily_history
   - analyze_trend
-aliases: [趋势, 趋势分析, 多头趋势]
+aliases: [xu hướng, phân tích xu hướng, xu hướng tăng]
 default_active: true
 default_router: true
 default_priority: 10
 market_regimes: [trending_up]
 
 instructions: |
-  **默认多头趋势（Default Bull Trend Strategy）**
+  **Xu hướng tăng mặc định（Default Bull Trend Strategy）**
 
-  适用场景：
-  - 常规个股分析的默认策略。
-  - 优先寻找“趋势向上 + 风险可控 + 不追高”的机会。
+  Phạm vi áp dụng:
+  - Chiến lược mặc định cho phân tích cổ phiếu thông thường.
+  - Ưu tiên tìm kiếm cơ hội "xu hướng tăng + rủi ro kiểm soát được + không đuổi giá cao".
 
-  分析框架：
+  Khung phân tích:
 
-  1. **趋势确认（优先级最高）**
-     - 使用 `analyze_trend` 判断 MA5/MA10/MA20 排列。
-     - MA5 >= MA10 >= MA20 且 MA20 斜率向上，视为多头结构。
-     - 若价格显著跌破 MA20，则降低看多权重。
+  1. **Xác nhận xu hướng（ưu tiên cao nhất）**
+     - Sử dụng `analyze_trend` để đánh giá sắp xếp MA5/MA10/MA20.
+     - MA5 >= MA10 >= MA20 và độ dốc MA20 hướng lên, coi là cấu trúc tăng.
+     - Nếu giá giảm mạnh dưới MA20, giảm trọng số quan điểm tăng.
 
-  2. **位置与节奏**
-     - 优先“回踩不破”而非“高位追涨”。
-     - 当价格距离 MA5/MA10 过远时，提示等待回踩。
-     - 放量突破有效阻力时可提高胜率评级。
+  2. **Vị thế và nhịp điệu**
+     - Ưu tiên "hồi về không phá" hơn là "đuổi theo đà tăng tại đỉnh".
+     - Khi giá cách MA5/MA10 quá xa, gợi ý chờ hồi về.
+     - Phá vỡ tăng khối lượng kháng cự hiệu quả có thể nâng xếp hạng tỷ lệ thắng.
 
-  3. **量价验证**
-     - 使用 `get_daily_history` 检查突破日/反弹日是否放量。
-     - 缩量上涨需谨慎，放量滞涨需警惕分歧。
+  3. **Xác nhận khối lượng - giá**
+     - Sử dụng `get_daily_history` kiểm tra ngày phá vỡ/ngày phục hồi có tăng khối lượng không.
+     - Tăng giảm khối lượng cần thận trọng; tăng khối lượng nhưng giá đứng yên cần cảnh giác phân kỳ.
 
-  4. **交易建议输出**
-     - 输出明确的“买入/观望/减仓”倾向及触发条件。
-     - 必须给出止损参考（如 MA20 下方或结构低点）。
-     - 若无清晰优势，明确写“暂不出手”，避免过度交易。
+  4. **Đầu ra khuyến nghị giao dịch**
+     - Đưa ra rõ ràng thiên hướng "mua/quan sát/giảm vị thế" và điều kiện kích hoạt.
+     - Phải cung cấp tham chiếu dừng lỗ（ví dụ: dưới MA20 hoặc đáy cấu trúc）.
+     - Nếu không có lợi thế rõ ràng, ghi rõ "chưa hành động", tránh giao dịch quá mức.
 
-  评分调整建议：
-  - 多头排列 + 趋势强度良好：`sentiment_score +12`
-  - 回踩关键均线后企稳：`sentiment_score +8`
-  - 放量突破关键阻力：`sentiment_score +10`
-  - 跌破 MA20 或趋势转弱：`sentiment_score -12`
+  Khuyến nghị điều chỉnh điểm:
+  - Sắp xếp tăng + cường độ xu hướng tốt: `sentiment_score +12`
+  - Hồi về đường MA quan trọng rồi ổn định: `sentiment_score +8`
+  - Phá vỡ tăng khối lượng kháng cự quan trọng: `sentiment_score +10`
+  - Giá phá MA20 hoặc xu hướng suy yếu: `sentiment_score -12`

@@ -33,7 +33,7 @@ class IntelAgent(BaseAgent):
     def system_prompt(self, ctx: AgentContext) -> str:
         return """\
 You are an **Intelligence & Sentiment Agent** specialising in A-shares, \
-HK, and US equities.
+HK, US equities, and Vietnam stocks (VN: prefix, e.g. VN:VIC, VN:HPG).
 
 Your task: gather the latest news, announcements, and risk signals for \
 the given stock, then produce a structured JSON opinion.

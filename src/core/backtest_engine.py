@@ -50,33 +50,37 @@ class EvaluationConfig:
 class BacktestEngine:
     """Long-only daily-bar backtesting engine."""
 
-    # Operation advice keywords (Chinese + English)
+    # Operation advice keywords (Vietnamese + Chinese + English)
     _BULLISH_KEYWORDS = (
-        "买入",
-        "加仓",
-        "强烈买入",
-        "增持",
-        "建仓",
-        "strong buy",
-        "buy",
-        "add",
+        # Vietnamese
+        "mua mạnh", "tăng vị thế", "mua",
+        # Chinese
+        "买入", "加仓", "强烈买入", "增持", "建仓",
+        # English
+        "strong buy", "buy", "add",
     )
     _BEARISH_KEYWORDS = (
-        "卖出",
-        "减仓",
-        "强烈卖出",
-        "清仓",
-        "strong sell",
-        "sell",
-        "reduce",
+        # Vietnamese
+        "bán mạnh", "giảm vị thế", "bán",
+        # Chinese
+        "卖出", "减仓", "强烈卖出", "清仓",
+        # English
+        "strong sell", "sell", "reduce",
     )
     _HOLD_KEYWORDS = (
+        # Vietnamese
+        "giữ",
+        # Chinese
         "持有",
+        # English
         "hold",
     )
     _WAIT_KEYWORDS = (
-        "观望",
-        "等待",
+        # Vietnamese
+        "quan sát", "chờ đợi",
+        # Chinese
+        "观望", "等待",
+        # English
         "wait",
     )
 
@@ -85,6 +89,7 @@ class BacktestEngine:
     # applied during matching so "do not" matches prefix "do not " or "do not".
     _NEGATION_PATTERNS = (
         "not", "don't", "do not", "no", "never", "avoid",  # English
+        "không", "đừng", "chớ",  # Vietnamese
         "不要", "不", "别", "勿", "没有",  # Chinese
     )
 

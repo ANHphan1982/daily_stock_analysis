@@ -114,6 +114,17 @@ class HistoryService:
             # Convert to response format
             items = []
             for record in records:
+                # Extract current_price/change_pct from raw_result JSON
+                current_price = None
+                change_pct = None
+                if record.raw_result:
+                    try:
+                        import json as _json
+                        rr = _json.loads(record.raw_result)
+                        current_price = rr.get("current_price")
+                        change_pct = rr.get("change_pct")
+                    except Exception:
+                        pass
                 items.append({
                     "id": record.id,
                     "query_id": record.query_id,
@@ -123,6 +134,8 @@ class HistoryService:
                     "sentiment_score": record.sentiment_score,
                     "operation_advice": record.operation_advice,
                     "created_at": record.created_at.isoformat() if record.created_at else None,
+                    "current_price": current_price,
+                    "change_pct": change_pct,
                 })
             
             return {

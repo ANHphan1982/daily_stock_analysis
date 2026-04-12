@@ -1,12 +1,12 @@
 import type React from 'react';
 import type { HistoryItem } from '../../types/analysis';
 import { getSentimentColor } from '../../types/analysis';
-import { formatDateTime } from '../../utils/format';
+import { formatDateCompact } from '../../utils/format';
 
 interface HistoryListItemProps {
   item: HistoryItem;
-  isViewing: boolean; // Indicates if this report is currently being viewed in the right panel
-  isChecked: boolean; // Indicates if the checkbox is checked for bulk operations
+  isViewing: boolean;
+  isChecked: boolean;
   isDeleting: boolean;
   onToggleChecked: (recordId: number) => void;
   onClick: (recordId: number) => void;
@@ -14,22 +14,19 @@ interface HistoryListItemProps {
 
 const getOperationBadgeLabel = (advice?: string) => {
   const normalized = advice?.trim();
-  if (!normalized) {
-    return '情绪';
-  }
-  if (normalized.includes('减仓')) {
-    return '减仓';
-  }
-  if (normalized.includes('卖')) {
-    return '卖出';
-  }
-  if (normalized.includes('观望') || normalized.includes('等待')) {
-    return '观望';
-  }
-  if (normalized.includes('买') || normalized.includes('布局')) {
-    return '买入';
-  }
-  return normalized.split(/[，。；、\s]/)[0] || '建议';
+  if (!normalized) return 'Tâm lý';
+  if (normalized.includes('减仓')) return 'Giảm vị thế';
+  if (normalized.includes('卖')) return 'Bán';
+  if (normalized.includes('观望') || normalized.includes('等待')) return 'Quan sát';
+  if (normalized.includes('买') || normalized.includes('布局')) return 'Mua';
+  return normalized.split(/[，。；、\s]/)[0] || 'Khuyến nghị';
+};
+
+/** Map score to semantic sentiment tier */
+const getSentimentTier = (score: number): 'bullish' | 'neutral' | 'bearish' => {
+  if (score >= 70) return 'bullish';
+  if (score >= 40) return 'neutral';
+  return 'bearish';
 };
 
 export const HistoryListItem: React.FC<HistoryListItemProps> = ({
@@ -71,12 +68,17 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <span className="truncate text-sm font-semibold text-foreground tracking-tight">
-                  {item.stockName || item.stockCode}
+                <span
+                  data-testid="history-item-stock-code"
+                  className="truncate text-sm font-semibold text-foreground tracking-tight font-mono"
+                >
+                  {item.stockCode}
                 </span>
               </div>
               {item.sentimentScore !== undefined && (
                 <span
+                  data-testid="history-item-badge"
+                  data-sentiment={getSentimentTier(item.sentimentScore)}
                   className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-none"
                   style={{
                     color: getSentimentColor(item.sentimentScore),
@@ -84,18 +86,34 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
                     backgroundColor: `${getSentimentColor(item.sentimentScore)}10`,
                   }}
                 >
-                  {getOperationBadgeLabel(item.operationAdvice)} {item.sentimentScore}
+                  <span data-testid="history-item-advice">
+                    {getOperationBadgeLabel(item.operationAdvice)}
+                  </span>
+                  {' '}{item.sentimentScore}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[11px] text-secondary-text font-mono">
-                {item.stockCode}
+            <div className="flex items-center justify-between gap-2 mt-1">
+              <span data-testid="history-item-date" className="text-[11px] text-muted-text">
+                {formatDateCompact(item.createdAt)}
               </span>
-              <span className="w-1 h-1 rounded-full bg-subtle-hover" />
-              <span className="text-[11px] text-muted-text">
-                {formatDateTime(item.createdAt)}
-              </span>
+              {item.currentPrice != null && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[11px] font-mono text-foreground">
+                    {item.currentPrice >= 1000
+                      ? item.currentPrice.toLocaleString('vi-VN', { maximumFractionDigits: 0 })
+                      : item.currentPrice.toFixed(2)}
+                  </span>
+                  {item.changePct != null && (
+                    <span
+                      className="text-[10px] font-mono font-semibold"
+                      style={{ color: item.changePct > 0 ? 'var(--home-price-up)' : item.changePct < 0 ? 'var(--home-price-down)' : undefined }}
+                    >
+                      {item.changePct > 0 ? '+' : ''}{item.changePct.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -2,63 +2,63 @@
 # 5-wave impulse + 3-wave corrective pattern analysis for trend and position sizing.
 
 name: wave_theory
-display_name: 波浪理论
-description: 基于艾略特波浪理论的推动浪与调整浪结构，判断当前所处浪型与潜在目标价。
+display_name: Lý thuyết sóng
+description: Dựa trên cấu trúc sóng đẩy và sóng điều chỉnh của lý thuyết sóng Elliott, xác định loại sóng hiện tại và giá mục tiêu tiềm năng.
 category: framework
 core_rules: [1, 2, 3, 4]
 required_tools:
   - get_daily_history
   - analyze_trend
   - get_realtime_quote
-aliases: [波浪, 波浪理论, 艾略特]
+aliases: [sóng, lý thuyết sóng, Elliott]
 default_priority: 80
 market_regimes: [volatile]
 
 instructions: |
-  **波浪理论（Elliott Wave Theory）**
+  **Lý thuyết sóng（Elliott Wave Theory）**
 
-  核心原则：市场按照 5 浪推进 + 3 浪调整的循环结构运行。
+  Nguyên tắc cốt lõi: thị trường vận động theo cấu trúc chu kỳ 5 sóng đẩy + 3 sóng điều chỉnh.
 
-  ## 分析步骤
+  ## Các bước phân tích
 
-  ### 1. 识别当前浪型
-  使用 `get_daily_history` 获取近 120 日数据，结合 `analyze_trend` 趋势数据：
+  ### 1. Nhận diện loại sóng hiện tại
+  Sử dụng `get_daily_history` lấy dữ liệu 120 ngày gần nhất, kết hợp dữ liệu xu hướng từ `analyze_trend`:
 
-  **推动浪（1-3-5）识别特征**：
-  - 第1浪：趋势反转的第一波，成交量温和放大。
-  - 第3浪：最强劲的推动浪，通常放大量，MACD 强势；绝不是最短浪。
-  - 第5浪：量能往往弱于第3浪，出现顶背离则走高后即将结束。
+  **Đặc điểm nhận diện sóng đẩy（1-3-5）**:
+  - Sóng 1: sóng đầu tiên của đảo chiều xu hướng, khối lượng giao dịch tăng vừa phải.
+  - Sóng 3: sóng đẩy mạnh nhất, thường tăng khối lượng, MACD mạnh; tuyệt đối không phải sóng ngắn nhất.
+  - Sóng 5: khối lượng thường yếu hơn sóng 3, xuất hiện phân kỳ đỉnh thì sắp kết thúc sau khi tăng cao.
 
-  **调整浪（A-B-C）识别特征**：
-  - A 浪：第一次下跌，成交量较大，多数人以为是回调。
-  - B 浪：反弹，力度弱于前期涨幅，成交量萎缩，陷阱风险高。
-  - C 浪：第二次下跌，力度往往超过 A 浪，完成调整。
+  **Đặc điểm nhận diện sóng điều chỉnh（A-B-C）**:
+  - Sóng A: đợt giảm đầu tiên, khối lượng giao dịch lớn, hầu hết coi là hồi về.
+  - Sóng B: phục hồi, động lực yếu hơn đà tăng trước, khối lượng thu hẹp, rủi ro bẫy cao.
+  - Sóng C: đợt giảm thứ hai, động lực thường vượt sóng A, hoàn thành điều chỉnh.
 
-  ### 2. 黄金位置判断
-  - 第2浪回调通常在第1浪的 38.2%~61.8%。
-  - 第3浪目标通常是第1浪的 1.618~2.618 倍延伸。
-  - 第4浪不得进入第1浪价格区域（违反波浪规则）。
-  - C浪目标：A 浪顶端起算，等于或超过 A 浪长度。
+  ### 2. Xác định vị trí vàng
+  - Điều chỉnh sóng 2 thường ở mức 38.2%~61.8% của sóng 1.
+  - Mục tiêu sóng 3 thường là mở rộng 1.618~2.618 lần sóng 1.
+  - Sóng 4 không được xâm phạm vùng giá sóng 1（vi phạm quy tắc sóng）.
+  - Mục tiêu sóng C: tính từ đỉnh sóng A, bằng hoặc vượt độ dài sóng A.
 
-  ### 3. 最优买点
-  - **第2浪回调企稳**（黄金坑）：最安全买点，止损第1浪起点。
-  - **第4浪回调企稳**：次优，止损第1浪顶部。
-  - **第3浪初期突破**：放量突破第1浪高点时。
-  - 避免在第5浪末端追高（顶背离风险）。
+  ### 3. Điểm mua tối ưu
+  - **Sóng 2 điều chỉnh ổn định**（hố vàng）: điểm mua an toàn nhất, dừng lỗ tại điểm xuất phát sóng 1.
+  - **Sóng 4 điều chỉnh ổn định**: thứ cấp, dừng lỗ tại đỉnh sóng 1.
+  - **Phá vỡ giai đoạn đầu sóng 3**: khi tăng khối lượng vượt đỉnh sóng 1.
+  - Tránh đuổi theo đà tăng ở cuối sóng 5（rủi ro phân kỳ đỉnh）.
 
-  ### 4. 风险提示
-  - B浪反弹不宜重仓（陷阱性质）。
-  - 波浪计数存在主观性，需结合其他技术指标验证。
-  - 若波浪规则被违反（如第4浪侵入第1浪），需重新归数。
+  ### 4. Cảnh báo rủi ro
+  - Sóng B phục hồi không nên giữ vị thế lớn（tính chất bẫy）.
+  - Đếm sóng mang tính chủ quan, cần kết hợp với các chỉ báo kỹ thuật khác để xác nhận.
+  - Nếu quy tắc sóng bị vi phạm（như sóng 4 xâm phạm sóng 1）, cần đếm lại.
 
-  ### 5. 输出要求
-  - 给出当前可能的浪型位置（如："处于第3浪中段"或"疑似第4浪调整"）。
-  - 给出关键斐波那契支撑/阻力位（0.382/0.618/1.618）。
-  - 说明当前是买入时机、等待机会还是规避。
-  - 标注波浪计数的置信度（高/中/低）。
+  ### 5. Yêu cầu đầu ra
+  - Nêu vị trí sóng hiện tại có thể（ví dụ: "đang ở giữa sóng 3" hoặc "nghi ngờ điều chỉnh sóng 4"）.
+  - Cung cấp các mức hỗ trợ/kháng cự Fibonacci quan trọng（0.382/0.618/1.618）.
+  - Giải thích hiện tại là thời điểm mua, chờ cơ hội hay tránh né.
+  - Ghi chú mức độ tin cậy của đếm sóng（cao/trung bình/thấp）.
 
-  评分调整建议：
-  - 第2浪底部企稳（黄金坑）：`sentiment_score +15`
-  - 第3浪突破确认：`sentiment_score +12`
-  - 第5浪末端/顶背离：`sentiment_score -10`
-  - C浪下跌中：`sentiment_score -12`
+  Khuyến nghị điều chỉnh điểm:
+  - Đáy sóng 2 ổn định（hố vàng）: `sentiment_score +15`
+  - Xác nhận phá vỡ sóng 3: `sentiment_score +12`
+  - Cuối sóng 5/phân kỳ đỉnh: `sentiment_score -10`
+  - Đang trong đà giảm sóng C: `sentiment_score -12`

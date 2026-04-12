@@ -220,7 +220,7 @@ get_realtime_quote_tool = ToolDefinition(
         ToolParameter(
             name="stock_code",
             type="string",
-            description="Stock code, e.g., '600519' (A-share), 'AAPL' (US), 'hk00700' (HK)",
+            description="Stock code, e.g., '600519' (A-share), 'AAPL' (US), 'hk00700' (HK), 'VN:VIC' (Vietnam)",
         ),
     ],
     handler=_handle_get_realtime_quote,
@@ -263,7 +263,7 @@ get_daily_history_tool = ToolDefinition(
         ToolParameter(
             name="stock_code",
             type="string",
-            description="Stock code, e.g., '600519' (A-share), 'AAPL' (US)",
+            description="Stock code, e.g., '600519' (A-share), 'AAPL' (US), 'VN:VIC' (Vietnam)",
         ),
         ToolParameter(
             name="days",

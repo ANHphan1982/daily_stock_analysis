@@ -2,7 +2,7 @@
 """
 Market context detection for LLM prompts.
 
-Detects the market (A-shares, HK, US) from a stock code and returns
+Detects the market (A-shares, HK, US, VN) from a stock code and returns
 market-specific role descriptions so prompts are not hardcoded to a
 single market.
 
@@ -17,12 +17,16 @@ def detect_market(stock_code: Optional[str]) -> str:
     """Detect market from stock code.
 
     Returns:
-        One of 'cn', 'hk', 'us', or 'cn' as fallback.
+        One of 'cn', 'hk', 'us', 'vn', or 'cn' as fallback.
     """
     if not stock_code:
         return "cn"
 
     code = stock_code.strip().upper()
+
+    # Vietnamese stocks: VN: prefix (e.g. VN:VIC, VN:FPT)
+    if code.startswith("VN:"):
+        return "vn"
 
     # HK stocks: HK00700, 00700.HK, or 5-digit pure numbers
     if code.startswith("HK") or code.endswith(".HK"):
@@ -47,34 +51,38 @@ def detect_market(stock_code: Optional[str]) -> str:
 
 _MARKET_ROLES = {
     "cn": {
-        "zh": " A 股",
+        "zh": "co phieu A (Trung Quoc)",
         "en": "China A-shares",
     },
     "hk": {
-        "zh": "港股",
+        "zh": "co phieu Hong Kong",
         "en": "Hong Kong stock",
     },
     "us": {
-        "zh": "美股",
+        "zh": "co phieu My",
         "en": "US stock",
+    },
+    "vn": {
+        "zh": "co phieu Viet Nam",
+        "en": "Vietnam stock",
     },
 }
 
 _MARKET_GUIDELINES = {
     "cn": {
         "zh": (
-            "- 本次分析对象为 **A 股**（中国沪深交易所上市股票）。\n"
-            "- 请关注 A 股特有的涨跌停机制（±10%/±20%/±30%）、T+1 交易制度及相关政策因素。"
+            "- Doi tuong phan tich lan nay la **co phieu A** (niem yet tren san giao dich Thuong Hai/Tham Quyen, Trung Quoc).\n"
+            "- Luu y co che bien do dao dong dac thu cua co phieu A (+-10%/+-20%/+-30%), quy dinh T+1 va cac yeu to chinh sach lien quan."
         ),
         "en": (
             "- This analysis covers a **China A-share** (listed on Shanghai/Shenzhen exchanges).\n"
-            "- Consider A-share-specific rules: daily price limits (±10%/±20%/±30%), T+1 settlement, and PRC policy factors."
+            "- Consider A-share-specific rules: daily price limits (+-10%/+-20%/+-30%), T+1 settlement, and PRC policy factors."
         ),
     },
     "hk": {
         "zh": (
-            "- 本次分析对象为 **港股**（香港交易所上市股票）。\n"
-            "- 港股无涨跌停限制，支持 T+0 交易，需关注港币汇率、南北向资金流及联交所特有规则。"
+            "- Doi tuong phan tich lan nay la **co phieu Hong Kong** (niem yet tren San giao dich Hong Kong).\n"
+            "- Co phieu Hong Kong khong co bien do dao dong, ho tro giao dich T+0, can chu y ty gia HKD, dong von Southbound/Northbound va cac quy tac dac thu cua HKEX."
         ),
         "en": (
             "- This analysis covers a **Hong Kong stock** (listed on HKEX).\n"
@@ -83,12 +91,22 @@ _MARKET_GUIDELINES = {
     },
     "us": {
         "zh": (
-            "- 本次分析对象为 **美股**（美国交易所上市股票）。\n"
-            "- 美股无涨跌停限制（但有熔断机制），支持 T+0 交易和盘前盘后交易，需关注美元汇率、美联储政策及 SEC 监管动态。"
+            "- Doi tuong phan tich lan nay la **co phieu My** (niem yet tren NYSE/NASDAQ).\n"
+            "- Co phieu My khong co bien do dao dong (nhung co co che ngat mach), ho tro giao dich T+0 va giao dich truoc/sau gio, can chu y ty gia USD, chinh sach Fed va quy dinh SEC."
         ),
         "en": (
             "- This analysis covers a **US stock** (listed on NYSE/NASDAQ).\n"
             "- US stocks have no daily price limits (but have circuit breakers), allow T+0 and pre/after-market trading. Consider USD FX, Fed policy, and SEC regulations."
+        ),
+    },
+    "vn": {
+        "zh": (
+            "- Doi tuong phan tich lan nay la **co phieu Viet Nam** (niem yet tren HOSE/HNX/UPCOM).\n"
+            "- Co phieu Viet Nam co bien do dao dong +-7% (HOSE/HNX) va +-15% (UPCOM), giao dich T+2, chu y chinh sach NHNN, ty gia USD/VND va dong von nuoc ngoai (room nuoc ngoai)."
+        ),
+        "en": (
+            "- This analysis covers a **Vietnam stock** (listed on HOSE/HNX/UPCOM).\n"
+            "- Vietnam stocks have daily price limits (+-7% on HOSE/HNX, +-15% on UPCOM), T+2 settlement. Consider SBV policy, USD/VND FX, and foreign ownership limits (room)."
         ),
     },
 }
@@ -102,7 +120,7 @@ def get_market_role(stock_code: Optional[str], lang: str = "zh") -> str:
         lang: 'zh' or 'en'.
 
     Returns:
-        Role string like 'A 股投资分析' or 'US stock investment analysis'.
+        Role string like 'A share investment analysis' or 'Vietnam stock investment analysis'.
     """
     market = detect_market(stock_code)
     lang_key = "en" if lang == "en" else "zh"

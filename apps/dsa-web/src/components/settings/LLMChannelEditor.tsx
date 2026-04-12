@@ -16,37 +16,37 @@ interface ChannelPreset {
 
 const CHANNEL_PRESETS: Record<string, ChannelPreset> = {
   aihubmix: {
-    label: 'AIHubmix（聚合平台）',
+    label: 'AIHubmix (Nền tảng tổng hợp)',
     protocol: 'openai',
     baseUrl: 'https://aihubmix.com/v1',
     placeholder: 'gpt-4o-mini,claude-3-5-sonnet,qwen-plus',
   },
   deepseek: {
-    label: 'DeepSeek 官方',
+    label: 'DeepSeek Chính thức',
     protocol: 'deepseek',
     baseUrl: 'https://api.deepseek.com/v1',
     placeholder: 'deepseek-chat,deepseek-reasoner',
   },
   dashscope: {
-    label: '通义千问（Dashscope）',
+    label: 'Tongyi Qianwen (Dashscope)',
     protocol: 'openai',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     placeholder: 'qwen-plus,qwen-turbo',
   },
   zhipu: {
-    label: '智谱 GLM',
+    label: 'Zhipu GLM',
     protocol: 'openai',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     placeholder: 'glm-4-flash,glm-4-plus',
   },
   moonshot: {
-    label: 'Moonshot（月之暗面）',
+    label: 'Moonshot',
     protocol: 'openai',
     baseUrl: 'https://api.moonshot.cn/v1',
     placeholder: 'moonshot-v1-8k',
   },
   siliconflow: {
-    label: '硅基流动（SiliconFlow）',
+    label: 'SiliconFlow',
     protocol: 'openai',
     baseUrl: 'https://api.siliconflow.cn/v1',
     placeholder: 'Qwen/Qwen3-8B,deepseek-ai/DeepSeek-V3',
@@ -58,31 +58,31 @@ const CHANNEL_PRESETS: Record<string, ChannelPreset> = {
     placeholder: 'openai/gpt-4o,anthropic/claude-3-5-sonnet',
   },
   gemini: {
-    label: 'Gemini 官方',
+    label: 'Gemini Chính thức',
     protocol: 'gemini',
     baseUrl: '',
     placeholder: 'gemini-2.5-flash,gemini-2.5-pro',
   },
   anthropic: {
-    label: 'Anthropic 官方',
+    label: 'Anthropic Chính thức',
     protocol: 'anthropic',
     baseUrl: '',
     placeholder: 'claude-3-5-sonnet-20241022',
   },
   openai: {
-    label: 'OpenAI 官方',
+    label: 'OpenAI Chính thức',
     protocol: 'openai',
     baseUrl: 'https://api.openai.com/v1',
     placeholder: 'gpt-4o,gpt-4o-mini',
   },
   ollama: {
-    label: 'Ollama（本地）',
+    label: 'Ollama (Cục bộ)',
     protocol: 'ollama',
     baseUrl: 'http://127.0.0.1:11434',
     placeholder: 'llama3.2,qwen2.5',
   },
   custom: {
-    label: '自定义渠道',
+    label: 'Kênh tùy chỉnh',
     protocol: 'openai',
     baseUrl: '',
     placeholder: 'model-name-1,model-name-2',
@@ -234,18 +234,18 @@ const ChannelRow: React.FC<ChannelRowProps> = ({
             </Badge>
           </div>
           <p className="mt-0.5 truncate text-[11px] text-secondary-text">
-            {modelCount > 0 ? `${modelCount} 个模型已配置` : '未配置模型'}
+            {modelCount > 0 ? `${modelCount} mô hình đã cấu hình` : 'Chưa cấu hình mô hình'}
           </p>
         </div>
 
         <span className="flex shrink-0 items-center gap-2">
-          {testState?.status === 'success' ? <span className="h-2 w-2 rounded-full bg-emerald-400" title="连接正常" /> : null}
-          {testState?.status === 'error' ? <span className="h-2 w-2 rounded-full bg-rose-400" title="连接失败" /> : null}
-          {testState?.status === 'loading' ? <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="测试中" /> : null}
-          {!hasKey && channel.protocol !== 'ollama' ? <Badge variant="warning">未填 Key</Badge> : null}
+          {testState?.status === 'success' ? <span className="h-2 w-2 rounded-full bg-emerald-400" title="Kết nối bình thường" /> : null}
+          {testState?.status === 'error' ? <span className="h-2 w-2 rounded-full bg-rose-400" title="Kết nối thất bại" /> : null}
+          {testState?.status === 'loading' ? <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="Đang kiểm tra" /> : null}
+          {!hasKey && channel.protocol !== 'ollama' ? <Badge variant="warning">Chưa nhập Key</Badge> : null}
           {testState?.status !== 'idle' ? (
             <Badge variant={statusVariant}>
-              {testState?.status === 'success' ? '连接正常' : testState?.status === 'error' ? '连接失败' : '测试中'}
+              {testState?.status === 'success' ? 'Kết nối bình thường' : testState?.status === 'error' ? 'Kết nối thất bại' : 'Đang kiểm tra'}
             </Badge>
           ) : null}
         </span>
@@ -260,7 +260,7 @@ const ChannelRow: React.FC<ChannelRowProps> = ({
             e.stopPropagation();
             onRemove(index);
           }}
-          title="删除渠道"
+          title="Xóa kênh"
         >
           ✕
         </Button>
@@ -270,20 +270,20 @@ const ChannelRow: React.FC<ChannelRowProps> = ({
         <div className="settings-surface-overlay-soft space-y-4 px-4 py-4">
           <div className="grid gap-2 sm:grid-cols-2">
             <Input
-              label="渠道名称"
+              label="Tên kênh"
               value={channel.name}
               disabled={busy}
               onChange={(e) => onUpdate(index, 'name', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
               placeholder="primary"
             />
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-foreground">协议</label>
+              <label className="block text-sm font-medium text-foreground">Giao thức</label>
               <Select
                 value={channel.protocol}
                 onChange={(v) => onUpdate(index, 'protocol', normalizeProtocol(v))}
                 options={PROTOCOL_OPTIONS}
                 disabled={busy}
-                placeholder="选择协议"
+                placeholder="Chọn giao thức"
               />
             </div>
           </div>
@@ -295,7 +295,7 @@ const ChannelRow: React.FC<ChannelRowProps> = ({
             onChange={(e) => onUpdate(index, 'baseUrl', e.target.value)}
             placeholder={
               channel.protocol === 'gemini' || channel.protocol === 'anthropic'
-                ? '官方接口可留空'
+                ? 'Giao diện chính thức có thể để trống'
                 : preset?.baseUrl || 'https://api.example.com/v1'
             }
           />
@@ -310,11 +310,11 @@ const ChannelRow: React.FC<ChannelRowProps> = ({
             value={channel.apiKey}
             disabled={busy}
             onChange={(e) => onUpdate(index, 'apiKey', e.target.value)}
-            placeholder={channel.protocol === 'ollama' ? '本地 Ollama 可留空' : '支持多个 Key 逗号分隔'}
+            placeholder={channel.protocol === 'ollama' ? 'Ollama cục bộ có thể để trống' : 'Hỗ trợ nhiều Key cách nhau bằng dấu phẩy'}
           />
 
           <Input
-            label="模型（逗号分隔）"
+            label="Mô hình (cách nhau bằng dấu phẩy)"
             value={channel.models}
             disabled={busy}
             onChange={(e) => onUpdate(index, 'models', e.target.value)}
@@ -330,7 +330,7 @@ const ChannelRow: React.FC<ChannelRowProps> = ({
               disabled={busy}
               onClick={() => onTest(channel, index)}
             >
-              {testState?.status === 'loading' ? '测试中...' : '测试连接'}
+              {testState?.status === 'loading' ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
             </Button>
             {testState?.text ? (
               <span className={`text-xs ${
@@ -450,7 +450,7 @@ function resolveModelPreview(models: string, protocol: ChannelProtocol): string[
 function buildModelOptions(models: string[], selectedModel: string, autoLabel: string): Array<{ value: string; label: string }> {
   const options: Array<{ value: string; label: string }> = [{ value: '', label: autoLabel }];
   if (selectedModel && !models.includes(selectedModel)) {
-    options.push({ value: selectedModel, label: `${selectedModel}（当前配置）` });
+    options.push({ value: selectedModel, label: `${selectedModel} (cấu hình hiện tại)` });
   }
   for (const model of models) {
     options.push({ value: model, label: model });
@@ -758,7 +758,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
   const handleSave = async () => {
     const hasEmptyName = channels.some((channel) => !channel.name.trim());
     if (hasEmptyName) {
-      setSaveMessage({ type: 'local-error', text: '渠道名称不能为空，且只能包含字母、数字或下划线。' });
+      setSaveMessage({ type: 'local-error', text: 'Tên kênh không được để trống và chỉ được chứa chữ cái, số hoặc dấu gạch dưới.' });
       return;
     }
 
@@ -767,7 +767,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
         && !availableModels.includes(runtimeConfig.primaryModel)
         && !usesDirectEnvProvider(runtimeConfig.primaryModel);
       if (invalidPrimaryModel) {
-        setSaveMessage({ type: 'local-error', text: '当前主模型不在已启用渠道的模型列表中，请重新选择。' });
+        setSaveMessage({ type: 'local-error', text: 'Mô hình chính hiện tại không có trong danh sách mô hình của kênh đã bật, vui lòng chọn lại.' });
         return;
       }
 
@@ -775,7 +775,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
         && !availableModels.includes(runtimeConfig.agentPrimaryModel)
         && !usesDirectEnvProvider(runtimeConfig.agentPrimaryModel);
       if (invalidAgentPrimaryModel) {
-        setSaveMessage({ type: 'local-error', text: '当前 Agent 主模型不在已启用渠道的模型列表中，请重新选择。' });
+        setSaveMessage({ type: 'local-error', text: 'Mô hình Agent chính hiện tại không có trong danh sách mô hình của kênh đã bật, vui lòng chọn lại.' });
         return;
       }
 
@@ -783,7 +783,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
         (model) => !availableModels.includes(model) && !usesDirectEnvProvider(model),
       );
       if (invalidFallbackModel) {
-        setSaveMessage({ type: 'local-error', text: '存在无效的 fallback 模型，请重新选择。' });
+        setSaveMessage({ type: 'local-error', text: 'Có mô hình fallback không hợp lệ, vui lòng chọn lại.' });
         return;
       }
 
@@ -791,7 +791,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
         && !availableModels.includes(runtimeConfig.visionModel)
         && !usesDirectEnvProvider(runtimeConfig.visionModel);
       if (invalidVisionModel) {
-        setSaveMessage({ type: 'local-error', text: '当前 Vision 模型不在已启用渠道的模型列表中，请重新选择。' });
+        setSaveMessage({ type: 'local-error', text: 'Mô hình Vision hiện tại không có trong danh sách mô hình của kênh đã bật, vui lòng chọn lại.' });
         return;
       }
     }
@@ -807,7 +807,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
         reloadNow: true,
         items: updateItems,
       });
-      setSaveMessage({ type: 'success', text: managesRuntimeConfig ? 'AI 配置已保存' : '渠道配置已保存' });
+      setSaveMessage({ type: 'success', text: managesRuntimeConfig ? 'Cấu hình AI đã được lưu' : 'Cấu hình kênh đã được lưu' });
       await onSaved(updateItems);
     } catch (error: unknown) {
       setSaveMessage({ type: 'error', error: getParsedApiError(error) });
@@ -819,7 +819,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
   const handleTest = async (channel: ChannelConfig, index: number) => {
     setTestStates((previous) => ({
       ...previous,
-      [index]: { status: 'loading', text: '测试中...' },
+      [index]: { status: 'loading', text: 'Đang kiểm tra...' },
     }));
 
     try {
@@ -833,8 +833,8 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
       });
 
       const text = result.success
-        ? `连接成功${result.resolvedModel ? ` · ${result.resolvedModel}` : ''}${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}`
-        : (result.error || result.message || '测试失败');
+        ? `Kết nối thành công${result.resolvedModel ? ` · ${result.resolvedModel}` : ''}${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}`
+        : (result.error || result.message || 'Kiểm tra thất bại');
 
       setTestStates((previous) => ({
         ...previous,
@@ -847,7 +847,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
       const parsed = getParsedApiError(error);
       setTestStates((previous) => ({
         ...previous,
-        [index]: { status: 'error', text: parsed.message || '测试失败' },
+        [index]: { status: 'error', text: parsed.message || 'Kiểm tra thất bại' },
       }));
     }
   };
@@ -889,14 +889,14 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
       >
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-foreground">AI 模型配置</h3>
-            <Badge variant="info" className="settings-accent-badge">渠道管理</Badge>
+            <h3 className="text-base font-semibold text-foreground">Cấu hình mô hình AI</h3>
+            <Badge variant="info" className="settings-accent-badge">Quản lý kênh</Badge>
           </div>
           <p className="text-xs text-muted-text">
-            添加服务商渠道，填入 API Key 和模型名称即可。配置会自动同步到 .env 文件。
+            Thêm kênh nhà cung cấp, điền API Key và tên mô hình. Cấu hình tự động đồng bộ vào tệp .env.
           </p>
         </div>
-        <span className="text-xs text-muted-text">{isCollapsed ? '▶ 展开' : '▼ 收起'}</span>
+        <span className="text-xs text-muted-text">{isCollapsed ? '▶ Mở rộng' : '▼ Thu gọn'}</span>
       </button>
 
       {!isCollapsed ? (
@@ -904,14 +904,14 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
           <div className="settings-surface rounded-[1.35rem] border settings-border p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-medium text-foreground">快速添加渠道</h4>
-                <p className="mt-1 text-xs text-secondary-text">先选择预设服务商，再一键创建配置草稿。</p>
+                <h4 className="text-sm font-medium text-foreground">Thêm kênh nhanh</h4>
+                <p className="mt-1 text-xs text-secondary-text">Chọn nhà cung cấp có sẵn, sau đó tạo bản cấu hình ngay.</p>
               </div>
-              <Badge variant="default" className="settings-border settings-surface-hover text-muted-text">{channels.length} 个渠道</Badge>
+              <Badge variant="default" className="settings-border settings-surface-hover text-muted-text">{channels.length} kênh</Badge>
             </div>
             <div className="flex items-center gap-2">
               <Button type="button" variant="gradient" className="whitespace-nowrap" disabled={busy} onClick={addChannel}>
-                + 添加渠道
+                + Thêm kênh
               </Button>
               <Select
                 value={addPreset}
@@ -921,7 +921,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
                   label: preset.label,
                 }))}
                 disabled={busy}
-                placeholder="选择服务商"
+                placeholder="Chọn nhà cung cấp"
                 className="flex-1"
               />
             </div>
@@ -929,16 +929,16 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-text">渠道列表</span>
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-text">Danh sách kênh</span>
               {channels.length > 0 ? (
-                <span className="text-[10px] text-muted-text">{channels.filter((c) => c.enabled).length}/{channels.length} 已启用</span>
+                <span className="text-[10px] text-muted-text">{channels.filter((c) => c.enabled).length}/{channels.length} đã bật</span>
               ) : null}
             </div>
 
             {channels.length === 0 ? (
               <div className="settings-surface-overlay-muted rounded-[1.35rem] border border-dashed border-border/28 px-4 py-10 text-center">
-                <p className="text-sm font-medium text-secondary-text">还没有渠道</p>
-                <p className="mt-1 text-xs text-muted-text">选择服务商预设后点击“添加渠道”即可开始配置。</p>
+                <p className="text-sm font-medium text-secondary-text">{"Chưa có kênh nào"}</p>
+                <p className="mt-1 text-xs text-muted-text">{"Chọn nhà cung cấp và nhấn \"Thêm kênh\" để bắt đầu cấu hình."}</p>
               </div>
             ) : channels.map((channel, index) => (
               <ChannelRow
@@ -962,8 +962,8 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
             <div className="settings-surface rounded-[1.35rem] border settings-border p-4">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <span className="settings-accent-text text-xs font-medium uppercase tracking-wider">运行时参数</span>
-                  <p className="mt-1 text-[11px] text-muted-text">主模型、Fallback、Vision 与 Temperature 会直接写入运行时配置。</p>
+                  <span className="settings-accent-text text-xs font-medium uppercase tracking-wider">Tham số runtime</span>
+                  <p className="mt-1 text-[11px] text-muted-text">Mô hình chính, Fallback, Vision và Temperature sẽ được ghi trực tiếp vào cấu hình runtime.</p>
                 </div>
                 <Badge variant="default" className="settings-border settings-surface-hover text-muted-text">Runtime</Badge>
               </div>
@@ -983,43 +983,43 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
                   <span className="w-8 text-right text-sm text-secondary-text">{runtimeConfig.temperature}</span>
                 </div>
                 <p className="mt-1 text-[11px] text-secondary-text">
-                  控制模型输出随机性，0 为确定性输出，2 为最大随机性，推荐 0.7。
+                  Kiểm soát độ ngẫu nhiên đầu ra mô hình, 0 là tất định, 2 là ngẫu nhiên tối đa, khuyến nghị 0.7.
                 </p>
               </div>
 
               {availableModels.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border/30 bg-background/10 px-3 py-2 text-xs text-muted-text">
-                  先添加至少一个已启用渠道并填写模型，下面的主模型 / fallback / Vision 选项才会出现。
+                  Thêm ít nhất một kênh đã bật và điền mô hình để các tùy chọn mô hình chính / fallback / Vision xuất hiện.
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <label className="mb-1 block text-xs text-muted-text">主模型</label>
+                    <label className="mb-1 block text-xs text-muted-text">Mô hình chính</label>
                     <Select
                       value={runtimeConfig.primaryModel}
                       onChange={setPrimaryModel}
-                      options={buildModelOptions(availableModels, runtimeConfig.primaryModel, '自动（使用第一个可用模型）')}
+                      options={buildModelOptions(availableModels, runtimeConfig.primaryModel, 'Tự động (dùng mô hình đầu tiên có sẵn)')}
                       disabled={busy}
                       placeholder=""
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-xs text-muted-text">Agent 主模型</label>
+                    <label className="mb-1 block text-xs text-muted-text">Mô hình Agent chính</label>
                     <Select
                       value={runtimeConfig.agentPrimaryModel}
                       onChange={(value) => setRuntimeConfig((previous) => ({
                         ...previous,
                         agentPrimaryModel: normalizeAgentPrimaryModel(value),
                       }))}
-                      options={buildModelOptions(availableModels, runtimeConfig.agentPrimaryModel, '自动（继承普通分析主模型）')}
+                      options={buildModelOptions(availableModels, runtimeConfig.agentPrimaryModel, 'Tự động (kế thừa mô hình phân tích thông thường)')}
                       disabled={busy}
                       placeholder=""
                     />
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-xs text-muted-text">Fallback 模型</label>
+                    <label className="mb-2 block text-xs text-muted-text">Mô hình Fallback</label>
                     <div className="space-y-2 rounded-xl border border-border/30 bg-background/10 p-3">
                       {availableModels.map((model) => (
                         <label key={model} className="flex items-center gap-2 text-sm text-secondary-text">
@@ -1035,16 +1035,16 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
                       ))}
                     </div>
                     <p className="mt-1 text-[11px] text-secondary-text">
-                      Fallback 只会在主模型失败时使用。主模型不会重复加入 fallback。
+                      Fallback chỉ được dùng khi mô hình chính thất bại. Mô hình chính sẽ không được thêm vào fallback.
                     </p>
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-xs text-muted-text">Vision 模型</label>
+                    <label className="mb-1 block text-xs text-muted-text">Mô hình Vision</label>
                     <Select
                       value={runtimeConfig.visionModel}
                       onChange={(value) => setRuntimeConfig((previous) => ({ ...previous, visionModel: value }))}
-                      options={buildModelOptions(availableModels, runtimeConfig.visionModel, '自动（跟随 Vision 默认逻辑）')}
+                      options={buildModelOptions(availableModels, runtimeConfig.visionModel, 'Tự động (theo logic Vision mặc định)')}
                       disabled={busy}
                       placeholder=""
                     />
@@ -1054,8 +1054,8 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
             </div>
           ) : (
             <div className="rounded-[1.35rem] border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">
-              当前已启用 `LITELLM_CONFIG`，主模型 / fallback / Vision / Temperature 继续在下方通用字段中管理；
-              这里仅保存渠道条目，不会覆盖 YAML 运行时选择。
+              Hiện đang bật `LITELLM_CONFIG`, mô hình chính / fallback / Vision / Temperature tiếp tục được quản lý trong các trường chung bên dưới;
+              đây chỉ lưu các mục kênh, không ghi đè lựa chọn runtime YAML.
             </div>
           )}
 
@@ -1067,9 +1067,9 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
               disabled={busy || !hasChanges}
               onClick={() => void handleSave()}
             >
-              {isSaving ? '保存中...' : managesRuntimeConfig ? '保存 AI 配置' : '保存渠道配置'}
+              {isSaving ? 'Đang lưu...' : managesRuntimeConfig ? 'Lưu cấu hình AI' : 'Lưu cấu hình kênh'}
             </Button>
-            {!hasChanges ? <span className="text-xs text-muted-text">当前没有未保存的改动</span> : null}
+            {!hasChanges ? <span className="text-xs text-muted-text">Hiện không có thay đổi chưa lưu</span> : null}
           </div>
 
           {saveMessage?.type === 'success' ? (

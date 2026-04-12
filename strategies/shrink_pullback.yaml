@@ -2,45 +2,45 @@
 # Volume shrinks during pullback to MA5/MA10, then price bounces.
 
 name: shrink_pullback
-display_name: 缩量回踩
-description: 检测缩量回踩均线支撑信号，趋势延续的理想入场点。
+display_name: Hồi về giảm khối lượng
+description: Phát hiện tín hiệu hồi về giảm khối lượng tại hỗ trợ đường MA, điểm vào lý tưởng cho xu hướng tiếp diễn.
 category: trend
 core_rules: [1, 2, 4]
 required_tools:
   - get_daily_history
   - analyze_trend
   - get_realtime_quote
-aliases: [缩量回踩, 回踩]
+aliases: [hồi về giảm khối lượng, hồi về]
 default_router: true
 default_priority: 40
 market_regimes: [trending_down, sideways]
 
 instructions: |
-  **缩量回踩（Shrink Volume Pullback Strategy）**
+  **Hồi về giảm khối lượng（Shrink Volume Pullback Strategy）**
 
-  入场判定标准：
+  Tiêu chí xác định điểm vào:
 
-  1. **前提条件**（关联理念2：趋势交易）：
-     - 股票必须处于上升趋势（MA5 > MA10 > MA20）。
-     - 使用 `analyze_trend` 确认多头排列。
+  1. **Điều kiện tiên quyết**（liên quan lý niệm 2: giao dịch xu hướng）:
+     - Cổ phiếu phải đang trong xu hướng tăng（MA5 > MA10 > MA20）.
+     - Sử dụng `analyze_trend` xác nhận sắp xếp tăng.
 
-  2. **回踩检测**（关联理念4：买点偏好）：
-     - 使用 `get_daily_history` 和 `get_realtime_quote`。
-     - 价格回踩至 MA5 附近（误差 1% 以内）或 MA10 附近（误差 2% 以内）。
-     - 回调期间成交量 < 5 日均量的 70%（缩量特征）。
-     - `analyze_trend` → volume_status 应显示缩量。
+  2. **Phát hiện hồi về**（liên quan lý niệm 4: ưu tiên điểm mua）:
+     - Sử dụng `get_daily_history` và `get_realtime_quote`.
+     - Giá hồi về gần MA5（sai số trong 1%）hoặc gần MA10（sai số trong 2%）.
+     - Khối lượng giao dịch trong giai đoạn điều chỉnh < 70% khối lượng trung bình 5 ngày（đặc trưng giảm khối lượng）.
+     - `analyze_trend` → volume_status nên hiển thị giảm khối lượng.
 
-  3. **反弹信号**（关联理念1：严进策略）：
-     - 当前价格守住均线支撑位。
-     - MA5 乖离率 < 2% — 最佳买入区间。
+  3. **Tín hiệu phục hồi**（liên quan lý niệm 1: chiến lược vào lệnh chặt chẽ）:
+     - Giá hiện tại giữ được mức hỗ trợ đường MA.
+     - Độ lệch MA5 < 2% — vùng mua tốt nhất.
 
-  4. **确认条件**（关联理念5：风险排查）：
-     - `search_stock_news` 无利空消息。
-     - 筹码分布健康（获利比例 50-80%）。
+  4. **Điều kiện xác nhận**（liên quan lý niệm 5: kiểm tra rủi ro）:
+     - `search_stock_news` không có tin xấu.
+     - Cấu trúc chip lành mạnh（tỷ lệ có lãi 50-80%）.
 
-  评分调整：
-  - 缩量回踩 MA5：sentiment_score +10
-  - 缩量回踩 MA10 且量能 < 0.6 倍均量：sentiment_score +8
-  - 理想买点设在 MA5 水平，次优买点设在 MA10。
-  - 止损设在 MA20 水平。
-  - 在 `buy_reason` 中注明"缩量回踩"。
+  Điều chỉnh điểm:
+  - Hồi về giảm khối lượng MA5: sentiment_score +10
+  - Hồi về giảm khối lượng MA10 và khối lượng < 0.6 lần khối lượng trung bình: sentiment_score +8
+  - Điểm mua lý tưởng đặt tại mức MA5, điểm mua thứ cấp tại MA10.
+  - Dừng lỗ đặt tại mức MA20.
+  - Ghi chú "hồi về giảm khối lượng" trong `buy_reason`.

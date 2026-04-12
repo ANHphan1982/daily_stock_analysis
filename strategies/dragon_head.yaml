@@ -2,43 +2,43 @@
 # Identifies sector leaders during sector rotation cycles.
 
 name: dragon_head
-display_name: 龙头策略
-description: 板块轮动中识别龙头股。适用于板块启动或行业催化剂出现时。
+display_name: Chiến lược cổ phiếu dẫn đầu
+description: Nhận diện cổ phiếu dẫn đầu trong luân chuyển ngành. Áp dụng khi ngành khởi động hoặc xuất hiện chất xúc tác ngành.
 category: trend
 core_rules: [2, 7]
 required_tools:
   - get_realtime_quote
   - get_sector_rankings
   - search_stock_news
-aliases: [龙头, 龙头战法]
+aliases: [cổ phiếu dẫn đầu, chiến lược dẫn đầu]
 default_priority: 90
 market_regimes: [sector_hot]
 
 instructions: |
-  **龙头策略（Dragon Head Strategy）**
+  **Chiến lược cổ phiếu dẫn đầu（Dragon Head Strategy）**
 
-  评估标准：
+  Tiêu chí đánh giá:
 
-  1. **板块领涨地位**：
-     - 使用 `get_sector_rankings` 检查该股所在板块是否为近期涨幅前列。
-     - 确认该股是否在板块启动周期中率先上涨或涨停。
+  1. **Vị thế dẫn đầu ngành**:
+     - Sử dụng `get_sector_rankings` kiểm tra ngành của cổ phiếu có nằm trong top tăng gần đây không.
+     - Xác nhận cổ phiếu có tăng trước hoặc tăng kịch trần trong chu kỳ ngành khởi động không.
 
-  2. **换手率与动能**（关联理念7：强势趋势股放宽）：
-     - 使用 `get_realtime_quote` 检查换手率。龙头股换手率通常 > 5%。
-     - 量比 > 1.5 说明有活跃的交易兴趣。
+  2. **Tỷ lệ luân chuyển và động lực**（liên quan lý niệm 7: nới lỏng cho cổ phiếu xu hướng mạnh）:
+     - Sử dụng `get_realtime_quote` kiểm tra tỷ lệ luân chuyển. Cổ phiếu dẫn đầu thường có tỷ lệ luân chuyển > 5%.
+     - Tỷ lệ khối lượng > 1.5 cho thấy có sự quan tâm giao dịch tích cực.
 
-  3. **相对强度**：
-     - 对比个股涨跌幅与板块平均值。
-     - 真正的龙头在上涨日应跑赢板块 2% 以上。
+  3. **Sức mạnh tương đối**:
+     - So sánh mức tăng/giảm của cổ phiếu với trung bình ngành.
+     - Cổ phiếu dẫn đầu thực sự nên vượt ngành hơn 2% trong ngày tăng.
 
-  4. **新闻催化**：
-     - 使用 `search_stock_news` 搜索板块级催化剂（政策、事件、业绩）。
-     - 龙头行情常伴随板块整体催化。
+  4. **Chất xúc tác tin tức**:
+     - Sử dụng `search_stock_news` tìm kiếm chất xúc tác cấp ngành（chính sách, sự kiện, kết quả kinh doanh）.
+     - Xu hướng cổ phiếu dẫn đầu thường đi kèm chất xúc tác toàn ngành.
 
-  5. **乖离率检查**（关联理念1：严进策略）：
-     - 龙头股可适当放宽乖离率至 7%，但超过 10% 仍需谨慎。
+  5. **Kiểm tra độ lệch**（liên quan lý niệm 1: chiến lược vào lệnh chặt chẽ）:
+     - Cổ phiếu dẫn đầu có thể nới lỏng độ lệch lên 7%, nhưng vượt 10% vẫn cần thận trọng.
 
-  评分调整：
-  - 确认为龙头股：sentiment_score +10
-  - 板块正处于主动轮动期：额外 +5
-  - 在 `buy_reason` 中注明"龙头策略"判断结果。
+  Điều chỉnh điểm:
+  - Xác nhận là cổ phiếu dẫn đầu: sentiment_score +10
+  - Ngành đang trong giai đoạn luân chuyển chủ động: thêm +5
+  - Ghi chú kết quả đánh giá "chiến lược cổ phiếu dẫn đầu" trong `buy_reason`.

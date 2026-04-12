@@ -12,19 +12,19 @@ const THEME_OPTIONS: Array<{
   label: string;
   icon: typeof Sun;
 }> = [
-  { value: 'light', label: '浅色', icon: Sun },
-  { value: 'dark', label: '深色', icon: Moon },
-  { value: 'system', label: '跟随系统', icon: Monitor },
+  { value: 'light', label: 'Sáng', icon: Sun },
+  { value: 'dark', label: 'Tối', icon: Moon },
+  { value: 'system', label: 'Theo hệ thống', icon: Monitor },
 ];
 
 function resolveThemeLabel(theme: string | undefined) {
   switch (theme) {
     case 'light':
-      return '浅色';
+      return 'Sáng';
     case 'dark':
-      return '深色';
+      return 'Tối';
     default:
-      return '跟随系统';
+      return 'Theo hệ thống';
   }
 }
 
@@ -78,11 +78,11 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
         )}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="切换主题 (暂时禁用)"
+        aria-label="Chuyển chủ đề (tạm thời vô hiệu hóa)"
       >
         <TriggerIcon className={cn('shrink-0', isNavVariant ? 'h-5 w-5' : 'h-4 w-4')} />
         {isNavVariant ? (
-          collapsed ? null : <span className="truncate text-[1.02rem] font-medium">主题</span>
+          collapsed ? null : <span className="truncate text-[1.02rem] font-medium">Chủ đề</span>
         ) : (
           <span className="hidden sm:inline">{resolveThemeLabel(activeTheme)}</span>
         )}

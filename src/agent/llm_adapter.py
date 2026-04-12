@@ -57,8 +57,11 @@ class LLMResponse:
 _AUTO_THINKING_MODELS: List[str] = ["deepseek-reasoner", "deepseek-r1", "qwq"]
 
 # Models that need explicit opt-in via extra_body; payload decoupled from model name.
+# NOTE: deepseek-chat thinking mode is incompatible with tool/function calling.
+# The /beta endpoint silently ignores or errors when both tools + thinking are set.
+# Only enable thinking for tool-free completions (e.g. pure text generation).
 _OPT_IN_THINKING_MODELS: Dict[str, dict] = {
-    "deepseek-chat": {"thinking": {"type": "enabled"}},
+    # "deepseek-chat": {"thinking": {"type": "enabled"}},  # Disabled: conflicts with tool calling
 }
 
 

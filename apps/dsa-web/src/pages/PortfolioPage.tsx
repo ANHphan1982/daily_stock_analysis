@@ -6,6 +6,7 @@ import type { ParsedApiError } from '../api/error';
 import { getParsedApiError } from '../api/error';
 import { ApiErrorAlert, Card, Badge, ConfirmDialog } from '../components/common';
 import { toDateInputValue } from '../utils/format';
+import { formatMoney } from '../utils/formatMoney';
 import type {
   PortfolioAccountItem,
   PortfolioCashDirection,
@@ -27,9 +28,11 @@ import type {
 const PIE_COLORS = ['#00d4ff', '#00ff88', '#ffaa00', '#ff7a45', '#7f8cff', '#ff4466'];
 const DEFAULT_PAGE_SIZE = 20;
 const FALLBACK_BROKERS: PortfolioImportBrokerItem[] = [
-  { broker: 'huatai', aliases: [], displayName: '华泰' },
-  { broker: 'citic', aliases: ['zhongxin'], displayName: '中信' },
-  { broker: 'cmb', aliases: ['cmbchina', 'zhaoshang'], displayName: '招商' },
+  { broker: 'tcbs', aliases: [], displayName: 'TCBS (Techcombank)' },
+  { broker: 'ssi', aliases: [], displayName: 'SSI Securities' },
+  { broker: 'vps', aliases: [], displayName: 'VPS Securities' },
+  { broker: 'vcsc', aliases: [], displayName: 'VCSC (Viet Capital)' },
+  { broker: 'hsc', aliases: [], displayName: 'HSC Securities' },
 ];
 
 type AccountOption = 'all' | number;
@@ -59,13 +62,6 @@ function getTodayIso(): string {
   return toDateInputValue(new Date());
 }
 
-function formatMoney(value: number | undefined | null, currency = 'CNY'): string {
-  if (value == null || Number.isNaN(value)) return '--';
-  return `${currency} ${Number(value).toLocaleString('zh-CN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 function formatPct(value: number | undefined | null): string {
   if (value == null || Number.isNaN(value)) return '--';
@@ -73,22 +69,19 @@ function formatPct(value: number | undefined | null): string {
 }
 
 function formatSideLabel(value: PortfolioSide): string {
-  return value === 'buy' ? '买入' : '卖出';
+  return value === 'buy' ? 'Mua' : 'Bán';
 }
 
 function formatCashDirectionLabel(value: PortfolioCashDirection): string {
-  return value === 'in' ? '流入' : '流出';
+  return value === 'in' ? 'Nạp tiền' : 'Rút tiền';
 }
 
 function formatCorporateActionLabel(value: PortfolioCorporateActionType): string {
-  return value === 'cash_dividend' ? '现金分红' : '拆并股调整';
+  return value === 'cash_dividend' ? 'Cổ tức tiền mặt' : 'Tách/gộp cổ phiếu';
 }
 
 function formatBrokerLabel(value: string, displayName?: string): string {
-  if (displayName && displayName.trim()) return `${value}（${displayName.trim()}）`;
-  if (value === 'huatai') return 'huatai（华泰）';
-  if (value === 'citic') return 'citic（中信）';
-  if (value === 'cmb') return 'cmb（招商）';
+  if (displayName && displayName.trim()) return `${value} — ${displayName.trim()}`;
   return value;
 }
 
@@ -96,42 +89,42 @@ function buildFxRefreshFeedback(data: PortfolioFxRefreshResponse): FxRefreshFeed
   if (data.refreshEnabled === false) {
     return {
       tone: 'neutral',
-      text: '汇率在线刷新已被禁用。',
+      text: 'Làm mới tỷ giá trực tuyến đã bị tắt.',
     };
   }
 
   if (data.pairCount === 0) {
     return {
       tone: 'neutral',
-      text: '当前范围无可刷新的汇率对。',
+      text: 'Không có cặp tỷ giá nào cần làm mới trong phạm vi hiện tại.',
     };
   }
 
   if (data.updatedCount > 0 && data.staleCount === 0 && data.errorCount === 0) {
     return {
       tone: 'success',
-      text: `汇率已刷新，共更新 ${data.updatedCount} 对。`,
+      text: `Tỷ giá đã được làm mới, cập nhật ${data.updatedCount} cặp.`,
     };
   }
 
-  const summary = `更新 ${data.updatedCount} 对，仍过期 ${data.staleCount} 对，失败 ${data.errorCount} 对。`;
+  const summary = `Cập nhật ${data.updatedCount} cặp, còn lỗi thời ${data.staleCount} cặp, thất bại ${data.errorCount} cặp.`;
   if (data.staleCount > 0) {
     return {
       tone: 'warning',
-      text: `已尝试刷新，但仍有部分货币对使用 stale/fallback 汇率。${summary}`,
+      text: `Đã làm mới nhưng một số cặp vẫn dùng tỷ giá dự phòng. ${summary}`,
     };
   }
 
   return {
     tone: 'warning',
-    text: `在线刷新未完全成功。${summary}`,
+    text: `Làm mới chưa hoàn toàn thành công. ${summary}`,
   };
 }
 
 const PortfolioPage: React.FC = () => {
   // Set page title
   useEffect(() => {
-    document.title = '持仓分析 - DSA';
+    document.title = 'Danh mục - DSA';
   }, []);
 
   const [accounts, setAccounts] = useState<PortfolioAccountItem[]>([]);
@@ -143,8 +136,8 @@ const PortfolioPage: React.FC = () => {
   const [accountForm, setAccountForm] = useState({
     name: '',
     broker: 'Demo',
-    market: 'cn' as 'cn' | 'hk' | 'us',
-    baseCurrency: 'CNY',
+    market: 'vn' as 'cn' | 'hk' | 'us' | 'vn',
+    baseCurrency: 'VND',
   });
   const [costMethod, setCostMethod] = useState<PortfolioCostMethod>('fifo');
   const [snapshot, setSnapshot] = useState<PortfolioSnapshotResponse | null>(null);
@@ -157,7 +150,7 @@ const PortfolioPage: React.FC = () => {
   const [writeWarning, setWriteWarning] = useState<string | null>(null);
 
   const [brokers, setBrokers] = useState<PortfolioImportBrokerItem[]>([]);
-  const [selectedBroker, setSelectedBroker] = useState('huatai');
+  const [selectedBroker, setSelectedBroker] = useState('tcbs');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvDryRun, setCsvDryRun] = useState(true);
   const [csvParsing, setCsvParsing] = useState(false);
@@ -252,7 +245,7 @@ const PortfolioPage: React.FC = () => {
       const brokerItems = response.brokers || [];
       if (brokerItems.length === 0) {
         setBrokers(FALLBACK_BROKERS);
-        setBrokerLoadWarning('券商列表接口返回为空，已回退为内置券商列表（华泰/中信/招商）。');
+        setBrokerLoadWarning('Danh sách môi giới trả về rỗng, đã dùng danh sách mặc định (TCBS/SSI/VPS).');
         if (!FALLBACK_BROKERS.some((item) => item.broker === selectedBroker)) {
           setSelectedBroker(FALLBACK_BROKERS[0].broker);
         }
@@ -265,7 +258,7 @@ const PortfolioPage: React.FC = () => {
       }
     } catch {
       setBrokers(FALLBACK_BROKERS);
-      setBrokerLoadWarning('券商列表接口不可用，已回退为内置券商列表（华泰/中信/招商）。');
+      setBrokerLoadWarning('Không thể tải danh sách môi giới, đã dùng danh sách mặc định (TCBS/SSI/VPS).');
       if (!FALLBACK_BROKERS.some((item) => item.broker === selectedBroker)) {
         setSelectedBroker(FALLBACK_BROKERS[0].broker);
       }
@@ -292,7 +285,7 @@ const PortfolioPage: React.FC = () => {
       } catch (riskErr) {
         setRisk(null);
         const parsed = getParsedApiError(riskErr);
-        setRiskWarning(parsed.message || '风险数据获取失败，已降级为仅展示快照数据。');
+        setRiskWarning(parsed.message || 'Không thể tải dữ liệu rủi ro, chỉ hiển thị dữ liệu ảnh chụp.');
       }
     } catch (err) {
       setSnapshot(null);
@@ -444,7 +437,7 @@ const PortfolioPage: React.FC = () => {
   const handleTradeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!writableAccountId) {
-      setWriteWarning('请先在右上角选择具体账户，再进行录入或导入提交。');
+      setWriteWarning('Vui lòng chọn tài khoản cụ thể trước khi nhập liệu hoặc nhập CSV.');
       return;
     }
     try {
@@ -471,7 +464,7 @@ const PortfolioPage: React.FC = () => {
   const handleCashSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!writableAccountId) {
-      setWriteWarning('请先在右上角选择具体账户，再进行录入或导入提交。');
+      setWriteWarning('Vui lòng chọn tài khoản cụ thể trước khi nhập liệu hoặc nhập CSV.');
       return;
     }
     try {
@@ -494,7 +487,7 @@ const PortfolioPage: React.FC = () => {
   const handleCorporateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!writableAccountId) {
-      setWriteWarning('请先在右上角选择具体账户，再进行录入或导入提交。');
+      setWriteWarning('Vui lòng chọn tài khoản cụ thể trước khi nhập liệu hoặc nhập CSV.');
       return;
     }
     try {
@@ -532,7 +525,7 @@ const PortfolioPage: React.FC = () => {
   const handleCommitCsv = async () => {
     if (!csvFile) return;
     if (!writableAccountId) {
-      setWriteWarning('请先在右上角选择具体账户，再进行录入或导入提交。');
+      setWriteWarning('Vui lòng chọn tài khoản cụ thể trước khi nhập liệu hoặc nhập CSV.');
       return;
     }
     try {
@@ -552,7 +545,7 @@ const PortfolioPage: React.FC = () => {
 
   const openDeleteDialog = (item: PendingDelete) => {
     if (!writableAccountId) {
-      setWriteWarning('请先在右上角选择具体账户，再进行删除修正。');
+      setWriteWarning('Vui lòng chọn tài khoản cụ thể trước khi xóa giao dịch.');
       return;
     }
     setPendingDelete(item);
@@ -561,7 +554,7 @@ const PortfolioPage: React.FC = () => {
   const handleConfirmDelete = async () => {
     if (!pendingDelete || deleteLoading) return;
     if (!writableAccountId) {
-      setWriteWarning('请先在右上角选择具体账户，再进行删除修正。');
+      setWriteWarning('Vui lòng chọn tài khoản cụ thể trước khi xóa giao dịch.');
       setPendingDelete(null);
       return;
     }
@@ -593,7 +586,7 @@ const PortfolioPage: React.FC = () => {
     e.preventDefault();
     const name = accountForm.name.trim();
     if (!name) {
-      setAccountCreateError('账户名称不能为空。');
+      setAccountCreateError('Tên tài khoản không được để trống.');
       setAccountCreateSuccess(null);
       return;
     }
@@ -605,7 +598,7 @@ const PortfolioPage: React.FC = () => {
         name,
         broker: accountForm.broker.trim() || undefined,
         market: accountForm.market,
-        baseCurrency: accountForm.baseCurrency.trim() || 'CNY',
+        baseCurrency: accountForm.baseCurrency.trim() || 'VND',
       });
       await loadAccounts();
       setSelectedAccount(created.id);
@@ -617,10 +610,10 @@ const PortfolioPage: React.FC = () => {
         market: accountForm.market,
         baseCurrency: accountForm.baseCurrency,
       });
-      setAccountCreateSuccess('账户创建成功，已自动切换到该账户。');
+      setAccountCreateSuccess('Tạo tài khoản thành công, đã tự động chuyển sang tài khoản mới.');
     } catch (err) {
       const parsed = getParsedApiError(err);
-      setAccountCreateError(parsed.message || '创建账户失败，请稍后重试。');
+      setAccountCreateError(parsed.message || 'Tạo tài khoản thất bại, vui lòng thử lại.');
       setAccountCreateSuccess(null);
     } finally {
       setAccountCreating(false);
@@ -670,7 +663,7 @@ const PortfolioPage: React.FC = () => {
         }
         setRisk(null);
         const parsed = getParsedApiError(riskErr);
-        setRiskWarning(parsed.message || '风险数据获取失败，已降级为仅展示快照数据。');
+        setRiskWarning(parsed.message || 'Không thể tải dữ liệu rủi ro, chỉ hiển thị dữ liệu ảnh chụp.');
       }
       return true;
     } catch (err) {
@@ -733,22 +726,22 @@ const PortfolioPage: React.FC = () => {
     <div className="min-h-screen p-4 md:p-6 space-y-4">
       <section className="space-y-3">
         <div className="space-y-2">
-          <h1 className="text-xl md:text-2xl font-semibold text-foreground">持仓管理</h1>
+          <h1 className="text-xl md:text-2xl font-semibold text-foreground">Quản lý danh mục</h1>
           <p className="text-xs md:text-sm text-secondary">
-            组合快照、手工录入、CSV 导入与风险分析（支持全组合 / 单账户切换）
+            Ảnh chụp danh mục, nhập tay, nhập CSV và phân tích rủi ro (hỗ trợ toàn danh mục / từng tài khoản)
           </p>
         </div>
         {hasAccounts ? (
           <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_220px_280px] gap-2 items-end">
               <div>
-                <p className="text-xs text-secondary mb-1">账户视图</p>
+                <p className="text-xs text-secondary mb-1">Tài khoản</p>
                 <select
                   value={String(selectedAccount)}
                   onChange={(e) => setSelectedAccount(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                   className="input-terminal text-sm w-full"
                 >
-                  <option value="all">全部账户</option>
+                  <option value="all">Tất cả tài khoản</option>
                   {accounts.map((account) => (
                     <option key={account.id} value={account.id}>
                       {account.name} (#{account.id})
@@ -757,14 +750,14 @@ const PortfolioPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <p className="text-xs text-secondary mb-1">成本口径</p>
+                <p className="text-xs text-secondary mb-1">Phương pháp giá vốn</p>
                 <select
                   value={costMethod}
                   onChange={(e) => setCostMethod(e.target.value as PortfolioCostMethod)}
                   className="input-terminal text-sm w-full"
                 >
-                  <option value="fifo">先进先出（FIFO）</option>
-                  <option value="avg">均价成本（AVG）</option>
+                  <option value="fifo">Nhập trước xuất trước (FIFO)</option>
+                  <option value="avg">Giá vốn trung bình (AVG)</option>
                 </select>
               </div>
               <div className="flex gap-2">
@@ -777,7 +770,7 @@ const PortfolioPage: React.FC = () => {
                     setAccountCreateSuccess(null);
                   }}
                 >
-                  {showCreateAccount ? '收起新建' : '新建账户'}
+                  {showCreateAccount ? 'Thu gọn' : 'Tạo tài khoản'}
                 </button>
                 <button
                   type="button"
@@ -785,14 +778,14 @@ const PortfolioPage: React.FC = () => {
                   disabled={isLoading || fxRefreshing}
                   className="btn-secondary text-sm flex-1"
                 >
-                  {isLoading ? '刷新中...' : '刷新数据'}
+                  {isLoading ? 'Đang làm mới...' : 'Làm mới'}
                 </button>
               </div>
             </div>
           </div>
         ) : (
           <div className="text-xs text-amber-300 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 inline-block">
-            还没有可用账户，请先创建账户后再录入交易或导入 CSV。
+            Chưa có tài khoản nào. Vui lòng tạo tài khoản trước khi nhập giao dịch hoặc nhập CSV.
           </div>
         )}
       </section>
@@ -800,19 +793,19 @@ const PortfolioPage: React.FC = () => {
       {error ? <ApiErrorAlert error={error} onDismiss={() => setError(null)} /> : null}
       {riskWarning ? (
         <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-amber-100 text-sm">
-          风险模块降级：{riskWarning}
+          Cảnh báo rủi ro: {riskWarning}
         </div>
       ) : null}
       {writeWarning ? (
         <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-amber-100 text-sm">
-          操作提示：{writeWarning}
+          Lưu ý: {writeWarning}
         </div>
       ) : null}
 
       {(showCreateAccount || !hasAccounts) ? (
         <Card padding="md">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-foreground">新建账户</h2>
+            <h2 className="text-sm font-semibold text-foreground">Tạo tài khoản mới</h2>
             {hasAccounts ? (
               <button
                 type="button"
@@ -823,10 +816,10 @@ const PortfolioPage: React.FC = () => {
                   setAccountCreateSuccess(null);
                 }}
               >
-                收起
+                Thu gọn
               </button>
             ) : (
-              <span className="text-xs text-secondary">创建后自动切换到该账户</span>
+              <span className="text-xs text-secondary">Sau khi tạo sẽ tự động chuyển sang tài khoản mới</span>
             )}
           </div>
           {accountCreateError ? (
@@ -842,33 +835,34 @@ const PortfolioPage: React.FC = () => {
           <form className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2" onSubmit={handleCreateAccount}>
             <input
               className="input-terminal text-sm md:col-span-2"
-              placeholder="账户名称（必填）"
+              placeholder="Tên tài khoản (bắt buộc)"
               value={accountForm.name}
               onChange={(e) => setAccountForm((prev) => ({ ...prev, name: e.target.value }))}
             />
             <input
               className="input-terminal text-sm"
-              placeholder="券商（可选，如 Demo/华泰）"
+              placeholder="Môi giới (tùy chọn, VD: TCBS/SSI)"
               value={accountForm.broker}
               onChange={(e) => setAccountForm((prev) => ({ ...prev, broker: e.target.value }))}
             />
             <input
               className="input-terminal text-sm"
-              placeholder="基准币（如 CNY/USD/HKD）"
+              placeholder="Tiền tệ cơ sở (VD: VND/USD)"
               value={accountForm.baseCurrency}
               onChange={(e) => setAccountForm((prev) => ({ ...prev, baseCurrency: e.target.value.toUpperCase() }))}
             />
             <select
               className="input-terminal text-sm"
               value={accountForm.market}
-              onChange={(e) => setAccountForm((prev) => ({ ...prev, market: e.target.value as 'cn' | 'hk' | 'us' }))}
+              onChange={(e) => setAccountForm((prev) => ({ ...prev, market: e.target.value as 'cn' | 'hk' | 'us' | 'vn' }))}
             >
-              <option value="cn">市场：A 股（cn）</option>
-              <option value="hk">市场：港股（hk）</option>
-              <option value="us">市场：美股（us）</option>
+              <option value="vn">Thị trường: Việt Nam (HOSE/HNX)</option>
+              <option value="us">Thị trường: Mỹ (NYSE/NASDAQ)</option>
+              <option value="hk">Thị trường: Hồng Kông (HKEX)</option>
+              <option value="cn">Thị trường: Trung Quốc (A-share)</option>
             </select>
             <button type="submit" className="btn-secondary text-sm" disabled={accountCreating}>
-              {accountCreating ? '创建中...' : '创建账户'}
+              {accountCreating ? 'Đang tạo...' : 'Tạo tài khoản'}
             </button>
           </form>
         </Card>
@@ -876,30 +870,30 @@ const PortfolioPage: React.FC = () => {
 
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
         <Card variant="gradient" padding="md">
-          <p className="text-xs text-secondary">总权益</p>
-          <p className="mt-1 text-xl font-semibold text-foreground">{formatMoney(snapshot?.totalEquity, snapshot?.currency || 'CNY')}</p>
+          <p className="text-xs text-secondary">Tổng vốn chủ sở hữu</p>
+          <p className="mt-1 text-xl font-semibold text-foreground">{formatMoney(snapshot?.totalEquity, snapshot?.currency || 'VND')}</p>
         </Card>
         <Card variant="gradient" padding="md">
-          <p className="text-xs text-secondary">总市值</p>
-          <p className="mt-1 text-xl font-semibold text-foreground">{formatMoney(snapshot?.totalMarketValue, snapshot?.currency || 'CNY')}</p>
+          <p className="text-xs text-secondary">Tổng giá trị thị trường</p>
+          <p className="mt-1 text-xl font-semibold text-foreground">{formatMoney(snapshot?.totalMarketValue, snapshot?.currency || 'VND')}</p>
         </Card>
         <Card variant="gradient" padding="md">
-          <p className="text-xs text-secondary">总现金</p>
-          <p className="mt-1 text-xl font-semibold text-foreground">{formatMoney(snapshot?.totalCash, snapshot?.currency || 'CNY')}</p>
+          <p className="text-xs text-secondary">Tổng tiền mặt</p>
+          <p className="mt-1 text-xl font-semibold text-foreground">{formatMoney(snapshot?.totalCash, snapshot?.currency || 'VND')}</p>
         </Card>
         <Card variant="gradient" padding="md">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-xs text-secondary">汇率状态</p>
+            <p className="text-xs text-secondary">Trạng thái tỷ giá</p>
             <button
               type="button"
               className="btn-secondary !px-3 !py-1 !text-xs shrink-0"
               onClick={() => void handleRefreshFx()}
               disabled={!hasAccounts || isLoading || fxRefreshing}
             >
-              {fxRefreshing ? '刷新中...' : '刷新汇率'}
+              {fxRefreshing ? 'Đang làm mới...' : 'Làm mới tỷ giá'}
             </button>
           </div>
-          <div className="mt-2">{snapshot?.fxStale ? <Badge variant="warning">过期</Badge> : <Badge variant="success">最新</Badge>}</div>
+          <div className="mt-2">{snapshot?.fxStale ? <Badge variant="warning">Lỗi thời</Badge> : <Badge variant="success">Mới nhất</Badge>}</div>
           {fxRefreshFeedback ? (
             <p
               className={`mt-2 text-xs ${
@@ -919,23 +913,23 @@ const PortfolioPage: React.FC = () => {
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <Card className="xl:col-span-2" padding="md">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground">持仓明细</h2>
-            <span className="text-xs text-secondary">共 {positionRows.length} 项</span>
+            <h2 className="text-sm font-semibold text-foreground">Chi tiết vị thế</h2>
+            <span className="text-xs text-secondary">{positionRows.length} mã</span>
           </div>
           {positionRows.length === 0 ? (
-            <p className="text-sm text-muted py-6 text-center">当前无持仓数据</p>
+            <p className="text-sm text-muted py-6 text-center">Chưa có vị thế nào</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-xs text-secondary border-b border-white/10">
                   <tr>
-                    <th className="text-left py-2 pr-2">账户</th>
-                    <th className="text-left py-2 pr-2">代码</th>
-                    <th className="text-right py-2 pr-2">数量</th>
-                    <th className="text-right py-2 pr-2">均价</th>
-                    <th className="text-right py-2 pr-2">现价</th>
-                    <th className="text-right py-2 pr-2">市值</th>
-                    <th className="text-right py-2">未实现盈亏</th>
+                    <th className="text-left py-2 pr-2">Tài khoản</th>
+                    <th className="text-left py-2 pr-2">Mã CP</th>
+                    <th className="text-right py-2 pr-2">SL</th>
+                    <th className="text-right py-2 pr-2">Giá vốn</th>
+                    <th className="text-right py-2 pr-2">Giá TT</th>
+                    <th className="text-right py-2 pr-2">Giá trị TT</th>
+                    <th className="text-right py-2">Lãi/lỗ chưa TT</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -959,7 +953,7 @@ const PortfolioPage: React.FC = () => {
         </Card>
 
         <Card padding="md">
-          <h2 className="text-sm font-semibold text-foreground mb-3">{concentrationMode === 'sector' ? '行业集中度分布' : '行业数据暂不可用，当前展示个股集中度'}</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-3">{concentrationMode === 'sector' ? 'Phân bổ theo ngành' : 'Chưa có dữ liệu ngành, hiển thị theo từng mã cổ phiếu'}</h2>
           {concentrationPieData.length > 0 ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -975,132 +969,132 @@ const PortfolioPage: React.FC = () => {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-sm text-muted py-8 text-center">暂无集中度数据</p>
+            <p className="text-sm text-muted py-8 text-center">Chưa có dữ liệu phân bổ</p>
           )}
           <div className="mt-3 text-xs text-secondary space-y-1">
-            <div>展示口径: {concentrationMode === 'sector' ? '行业维度' : '个股维度（降级显示）'}</div>
-            <div>板块集中度告警: {risk?.sectorConcentration?.alert ? '是' : '否'}</div>
-            <div>Top1 权重: {formatPct(risk?.sectorConcentration?.topWeightPct ?? risk?.concentration?.topWeightPct)}</div>
+            <div>Phạm vi: {concentrationMode === 'sector' ? 'Theo ngành' : 'Theo mã cổ phiếu (dự phòng)'}</div>
+            <div>Cảnh báo tập trung ngành: {risk?.sectorConcentration?.alert ? 'Có' : 'Không'}</div>
+            <div>Tỷ trọng Top 1: {formatPct(risk?.sectorConcentration?.topWeightPct ?? risk?.concentration?.topWeightPct)}</div>
           </div>
         </Card>
       </section>
 
       {writeBlocked && hasAccounts ? (
         <div className="text-xs text-amber-300 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2">
-          当前处于“全部账户”视图。为避免误写，请先选择一个具体账户后再进行手工录入或 CSV 提交。
+          Đang ở chế độ xem “Tất cả tài khoản”. Để tránh ghi nhầm, hãy chọn một tài khoản cụ thể trước khi nhập thủ công hoặc nhập CSV.
         </div>
       ) : null}
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card padding="md">
-          <h3 className="text-sm font-semibold text-foreground mb-2">回撤监控</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">Theo dõi Drawdown</h3>
           <div className="text-xs text-secondary space-y-1">
-            <div>最大回撤: {formatPct(risk?.drawdown?.maxDrawdownPct)}</div>
-            <div>当前回撤: {formatPct(risk?.drawdown?.currentDrawdownPct)}</div>
-            <div>告警: {risk?.drawdown?.alert ? '是' : '否'}</div>
+            <div>Drawdown tối đa: {formatPct(risk?.drawdown?.maxDrawdownPct)}</div>
+            <div>Drawdown hiện tại: {formatPct(risk?.drawdown?.currentDrawdownPct)}</div>
+            <div>Cảnh báo: {risk?.drawdown?.alert ? 'Có' : 'Không'}</div>
           </div>
         </Card>
         <Card padding="md">
-          <h3 className="text-sm font-semibold text-foreground mb-2">止损接近预警</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">Cảnh báo gần cắt lỗ</h3>
           <div className="text-xs text-secondary space-y-1">
-            <div>触发数: {risk?.stopLoss?.triggeredCount ?? 0}</div>
-            <div>接近数: {risk?.stopLoss?.nearCount ?? 0}</div>
-            <div>告警: {risk?.stopLoss?.nearAlert ? '是' : '否'}</div>
+            <div>Đã kích hoạt: {risk?.stopLoss?.triggeredCount ?? 0}</div>
+            <div>Gần ngưỡng: {risk?.stopLoss?.nearCount ?? 0}</div>
+            <div>Cảnh báo: {risk?.stopLoss?.nearAlert ? 'Có' : 'Không'}</div>
           </div>
         </Card>
         <Card padding="md">
-          <h3 className="text-sm font-semibold text-foreground mb-2">口径</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">Thông tin danh mục</h3>
           <div className="text-xs text-secondary space-y-1">
-            <div>账户数: {snapshot?.accountCount ?? 0}</div>
-            <div>计价币种: {snapshot?.currency || 'CNY'}</div>
-            <div>成本法: {(snapshot?.costMethod || costMethod).toUpperCase()}</div>
+            <div>Số tài khoản: {snapshot?.accountCount ?? 0}</div>
+            <div>Tiền tệ: {snapshot?.currency || 'VND'}</div>
+            <div>Phương pháp giá vốn: {(snapshot?.costMethod || costMethod).toUpperCase()}</div>
           </div>
         </Card>
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <Card padding="md">
-          <h3 className="text-sm font-semibold text-foreground mb-3">手工录入：交易</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Nhập thủ công: Giao dịch</h3>
           <form className="space-y-2" onSubmit={handleTradeSubmit}>
-            <input className="input-terminal w-full text-sm" placeholder="股票代码（例如 600519）" value={tradeForm.symbol}
+            <input className="input-terminal w-full text-sm" placeholder="Mã cổ phiếu (ví dụ VCB)" value={tradeForm.symbol}
               onChange={(e) => setTradeForm((prev) => ({ ...prev, symbol: e.target.value }))} required />
             <div className="grid grid-cols-2 gap-2">
               <input className="input-terminal text-sm" type="date" value={tradeForm.tradeDate}
                 onChange={(e) => setTradeForm((prev) => ({ ...prev, tradeDate: e.target.value }))} required />
               <select className="input-terminal text-sm" value={tradeForm.side}
                 onChange={(e) => setTradeForm((prev) => ({ ...prev, side: e.target.value as PortfolioSide }))}>
-                <option value="buy">买入</option>
-                <option value="sell">卖出</option>
+                <option value="buy">Mua</option>
+                <option value="sell">Bán</option>
               </select>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <input className="input-terminal text-sm" type="number" min="0" step="0.0001" placeholder="数量（必填）" value={tradeForm.quantity}
+              <input className="input-terminal text-sm" type="number" min="0" step="0.0001" placeholder="Số lượng (bắt buộc)" value={tradeForm.quantity}
                 onChange={(e) => setTradeForm((prev) => ({ ...prev, quantity: e.target.value }))} required />
-              <input className="input-terminal text-sm" type="number" min="0" step="0.0001" placeholder="成交价（必填）" value={tradeForm.price}
+              <input className="input-terminal text-sm" type="number" min="0" step="0.0001" placeholder="Giá khớp (bắt buộc)" value={tradeForm.price}
                 onChange={(e) => setTradeForm((prev) => ({ ...prev, price: e.target.value }))} required />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <input className="input-terminal text-sm" type="number" min="0" step="0.0001" placeholder="手续费（可选）" value={tradeForm.fee}
+              <input className="input-terminal text-sm" type="number" min="0" step="0.0001" placeholder="Phí giao dịch (tuỳ chọn)" value={tradeForm.fee}
                 onChange={(e) => setTradeForm((prev) => ({ ...prev, fee: e.target.value }))} />
-              <input className="input-terminal text-sm" type="number" min="0" step="0.0001" placeholder="税费（可选）" value={tradeForm.tax}
+              <input className="input-terminal text-sm" type="number" min="0" step="0.0001" placeholder="Thuế (tuỳ chọn)" value={tradeForm.tax}
                 onChange={(e) => setTradeForm((prev) => ({ ...prev, tax: e.target.value }))} />
             </div>
-            <p className="text-xs text-secondary">手续费和税费可留空，系统将按 0 处理。</p>
-            <button type="submit" className="btn-secondary w-full" disabled={!writableAccountId}>提交交易</button>
+            <p className="text-xs text-secondary">Phí và thuế có thể để trống, hệ thống sẽ tính là 0.</p>
+            <button type="submit" className="btn-secondary w-full" disabled={!writableAccountId}>Gửi giao dịch</button>
           </form>
         </Card>
 
         <Card padding="md">
-          <h3 className="text-sm font-semibold text-foreground mb-3">手工录入：资金流水</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Nhập thủ công: Dòng tiền</h3>
           <form className="space-y-2" onSubmit={handleCashSubmit}>
             <div className="grid grid-cols-2 gap-2">
               <input className="input-terminal text-sm" type="date" value={cashForm.eventDate}
                 onChange={(e) => setCashForm((prev) => ({ ...prev, eventDate: e.target.value }))} required />
               <select className="input-terminal text-sm" value={cashForm.direction}
                 onChange={(e) => setCashForm((prev) => ({ ...prev, direction: e.target.value as PortfolioCashDirection }))}>
-                <option value="in">流入</option>
-                <option value="out">流出</option>
+                <option value="in">Nạp tiền</option>
+                <option value="out">Rút tiền</option>
               </select>
             </div>
-            <input className="input-terminal w-full text-sm" type="number" min="0" step="0.0001" placeholder="金额"
+            <input className="input-terminal w-full text-sm" type="number" min="0" step="0.0001" placeholder="Số tiền"
               value={cashForm.amount} onChange={(e) => setCashForm((prev) => ({ ...prev, amount: e.target.value }))} required />
-            <input className="input-terminal w-full text-sm" placeholder={`币种（可选，默认 ${writableAccount?.baseCurrency || '账户基准币'}）`} value={cashForm.currency}
+            <input className="input-terminal w-full text-sm" placeholder={`Tiền tệ (tuỳ chọn, mặc định ${writableAccount?.baseCurrency || 'tiền tệ tài khoản'})`} value={cashForm.currency}
               onChange={(e) => setCashForm((prev) => ({ ...prev, currency: e.target.value }))} />
-            <button type="submit" className="btn-secondary w-full" disabled={!writableAccountId}>提交资金流水</button>
+            <button type="submit" className="btn-secondary w-full" disabled={!writableAccountId}>Gửi dòng tiền</button>
           </form>
         </Card>
 
         <Card padding="md">
-          <h3 className="text-sm font-semibold text-foreground mb-3">手工录入：公司行为</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Nhập thủ công: Sự kiện doanh nghiệp</h3>
           <form className="space-y-2" onSubmit={handleCorporateSubmit}>
-            <input className="input-terminal w-full text-sm" placeholder="股票代码" value={corpForm.symbol}
+            <input className="input-terminal w-full text-sm" placeholder="Mã cổ phiếu" value={corpForm.symbol}
               onChange={(e) => setCorpForm((prev) => ({ ...prev, symbol: e.target.value }))} required />
             <div className="grid grid-cols-2 gap-2">
               <input className="input-terminal text-sm" type="date" value={corpForm.effectiveDate}
                 onChange={(e) => setCorpForm((prev) => ({ ...prev, effectiveDate: e.target.value }))} required />
               <select className="input-terminal text-sm" value={corpForm.actionType}
                 onChange={(e) => setCorpForm((prev) => ({ ...prev, actionType: e.target.value as PortfolioCorporateActionType }))}>
-                <option value="cash_dividend">现金分红</option>
-                <option value="split_adjustment">拆并股调整</option>
+                <option value="cash_dividend">Cổ tức tiền mặt</option>
+                <option value="split_adjustment">Tách/gộp cổ phiếu</option>
               </select>
             </div>
             {corpForm.actionType === 'cash_dividend' ? (
-              <input className="input-terminal w-full text-sm" type="number" min="0" step="0.000001" placeholder="每股分红"
+              <input className="input-terminal w-full text-sm" type="number" min="0" step="0.000001" placeholder="Cổ tức mỗi cổ phiếu"
                 value={corpForm.cashDividendPerShare}
                 onChange={(e) => setCorpForm((prev) => ({ ...prev, cashDividendPerShare: e.target.value, splitRatio: '' }))} required />
             ) : (
-              <input className="input-terminal w-full text-sm" type="number" min="0" step="0.000001" placeholder="拆并股比例"
+              <input className="input-terminal w-full text-sm" type="number" min="0" step="0.000001" placeholder="Tỷ lệ tách/gộp"
                 value={corpForm.splitRatio}
                 onChange={(e) => setCorpForm((prev) => ({ ...prev, splitRatio: e.target.value, cashDividendPerShare: '' }))} required />
             )}
-            <button type="submit" className="btn-secondary w-full" disabled={!writableAccountId}>提交企业行为</button>
+            <button type="submit" className="btn-secondary w-full" disabled={!writableAccountId}>Gửi sự kiện doanh nghiệp</button>
           </form>
         </Card>
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <Card padding="md">
-          <h3 className="text-sm font-semibold text-foreground mb-3">券商 CSV 导入</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Nhập CSV từ công ty chứng khoán</h3>
           <div className="space-y-2">
             {brokerLoadWarning ? (
               <div className="text-xs text-amber-300 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2 py-1">
@@ -1112,52 +1106,52 @@ const PortfolioPage: React.FC = () => {
                 {brokers.length > 0 ? (
                   brokers.map((item) => <option key={item.broker} value={item.broker}>{formatBrokerLabel(item.broker, item.displayName)}</option>)
                 ) : (
-                  <option value="huatai">huatai（华泰）</option>
+                  <option value="tcbs">TCBS</option>
                 )}
               </select>
               <label className="input-terminal text-sm flex items-center justify-center cursor-pointer">
-                选择 CSV
+                Chọn file CSV
                 <input type="file" accept=".csv" className="hidden"
                   onChange={(e) => setCsvFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
               </label>
             </div>
             <div className="flex items-center gap-2 text-xs text-secondary">
               <input id="csv-dry-run" type="checkbox" checked={csvDryRun} onChange={(e) => setCsvDryRun(e.target.checked)} />
-              <label htmlFor="csv-dry-run">仅预演（不写入）</label>
+              <label htmlFor="csv-dry-run">Chỉ thử nghiệm (không lưu)</label>
             </div>
             <div className="flex gap-2">
               <button type="button" className="btn-secondary flex-1" disabled={!csvFile || csvParsing} onClick={() => void handleParseCsv()}>
-                {csvParsing ? '解析中...' : '解析文件'}
+                {csvParsing ? 'Đang phân tích...' : 'Phân tích file'}
               </button>
               <button type="button" className="btn-secondary flex-1"
                 disabled={!csvFile || !writableAccountId || csvCommitting} onClick={() => void handleCommitCsv()}>
-                {csvCommitting ? '提交中...' : '提交导入'}
+                {csvCommitting ? 'Đang gửi...' : 'Gửi nhập liệu'}
               </button>
             </div>
             {csvParseResult ? (
               <div className="text-xs text-secondary rounded-lg border border-white/10 p-2">
-                解析结果：有效 {csvParseResult.recordCount} 条，跳过 {csvParseResult.skippedCount} 条，错误 {csvParseResult.errorCount} 条
+                Kết quả phân tích: hợp lệ {csvParseResult.recordCount} dòng, bỏ qua {csvParseResult.skippedCount} dòng, lỗi {csvParseResult.errorCount} dòng
               </div>
             ) : null}
             {csvCommitResult ? (
               <div className="text-xs text-secondary rounded-lg border border-white/10 p-2">
-                提交结果：写入 {csvCommitResult.insertedCount} 条，重复 {csvCommitResult.duplicateCount} 条，失败 {csvCommitResult.failedCount} 条
+                Kết quả gửi: đã lưu {csvCommitResult.insertedCount} dòng, trùng lặp {csvCommitResult.duplicateCount} dòng, thất bại {csvCommitResult.failedCount} dòng
               </div>
             ) : null}
           </div>
         </Card>
 
         <Card padding="md">
-          <h3 className="text-sm font-semibold text-foreground mb-3">事件记录</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Lịch sử giao dịch</h3>
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <select className="input-terminal text-sm" value={eventType} onChange={(e) => setEventType(e.target.value as EventType)}>
-                <option value="trade">交易流水</option>
-                <option value="cash">资金流水</option>
-                <option value="corporate">公司行为</option>
+                <option value="trade">Giao dịch</option>
+                <option value="cash">Dòng tiền</option>
+                <option value="corporate">Sự kiện DN</option>
               </select>
               <button type="button" className="btn-secondary text-sm" onClick={() => void loadEvents()} disabled={eventLoading}>
-                {eventLoading ? '加载中...' : '刷新流水'}
+                {eventLoading ? 'Đang tải...' : 'Làm mới'}
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -1165,40 +1159,40 @@ const PortfolioPage: React.FC = () => {
               <input className="input-terminal text-sm" type="date" value={eventDateTo} onChange={(e) => setEventDateTo(e.target.value)} />
             </div>
             {(eventType === 'trade' || eventType === 'corporate') ? (
-              <input className="input-terminal text-sm w-full" placeholder="按股票代码筛选" value={eventSymbol}
+              <input className="input-terminal text-sm w-full" placeholder="Lọc theo mã cổ phiếu" value={eventSymbol}
                 onChange={(e) => setEventSymbol(e.target.value)} />
             ) : null}
             {eventType === 'trade' ? (
               <select className="input-terminal text-sm w-full" value={eventSide} onChange={(e) => setEventSide(e.target.value as '' | PortfolioSide)}>
-                <option value="">全部买卖方向</option>
-                <option value="buy">买入</option>
-                <option value="sell">卖出</option>
+                <option value="">Tất cả chiều giao dịch</option>
+                <option value="buy">Mua</option>
+                <option value="sell">Bán</option>
               </select>
             ) : null}
             {eventType === 'cash' ? (
               <select className="input-terminal text-sm w-full" value={eventDirection}
                 onChange={(e) => setEventDirection(e.target.value as '' | PortfolioCashDirection)}>
-                <option value="">全部资金方向</option>
-                <option value="in">流入</option>
-                <option value="out">流出</option>
+                <option value="">Tất cả chiều tiền</option>
+                <option value="in">Nạp tiền</option>
+                <option value="out">Rút tiền</option>
               </select>
             ) : null}
             {eventType === 'corporate' ? (
               <select className="input-terminal text-sm w-full" value={eventActionType}
                 onChange={(e) => setEventActionType(e.target.value as '' | PortfolioCorporateActionType)}>
-                <option value="">全部公司行为</option>
-                <option value="cash_dividend">现金分红</option>
-                <option value="split_adjustment">拆并股调整</option>
+                <option value="">Tất cả sự kiện DN</option>
+                <option value="cash_dividend">Cổ tức tiền mặt</option>
+                <option value="split_adjustment">Tách/gộp cổ phiếu</option>
               </select>
             ) : null}
             <div className="text-[11px] text-secondary">
-              {writeBlocked ? '删除修正仅在单账户视图可用。请先选择具体账户后再删除错误流水。' : '如有错误流水，可直接删除后重新录入。'}
+              {writeBlocked ? 'Xoá dòng lệnh chỉ khả dụng khi chọn một tài khoản cụ thể. Hãy chọn tài khoản trước khi xoá.' : 'Nếu có lệnh nhập sai, hãy xoá và nhập lại.'}
             </div>
             <div className="max-h-64 overflow-auto rounded-lg border border-white/10 p-2">
               {eventType === 'trade' && tradeEvents.map((item) => (
                 <div key={`t-${item.id}`} className="flex items-start justify-between gap-3 border-b border-white/5 py-2 text-xs text-secondary">
                   <div className="min-w-0">
-                    {item.tradeDate} {formatSideLabel(item.side)} {item.symbol} 数量={item.quantity} 价格={item.price}
+                    {item.tradeDate} {formatSideLabel(item.side)} {item.symbol} SL={item.quantity} Giá={item.price}
                   </div>
                   {!writeBlocked ? (
                     <button
@@ -1207,10 +1201,10 @@ const PortfolioPage: React.FC = () => {
                       onClick={() => openDeleteDialog({
                         eventType: 'trade',
                         id: item.id,
-                        message: `确认删除 ${item.tradeDate} 的${formatSideLabel(item.side)}流水 ${item.symbol}（数量 ${item.quantity}，价格 ${item.price}）吗？`,
+                        message: `Xác nhận xoá lệnh ${formatSideLabel(item.side)} ngày ${item.tradeDate} — ${item.symbol} (SL ${item.quantity}, Giá ${item.price})?`,
                       })}
                     >
-                      删除
+                      Xoá
                     </button>
                   ) : null}
                 </div>
@@ -1227,10 +1221,10 @@ const PortfolioPage: React.FC = () => {
                       onClick={() => openDeleteDialog({
                         eventType: 'cash',
                         id: item.id,
-                        message: `确认删除 ${item.eventDate} 的资金流水（${formatCashDirectionLabel(item.direction)} ${item.amount} ${item.currency}）吗？`,
+                        message: `Xác nhận xoá dòng tiền ngày ${item.eventDate} — ${formatCashDirectionLabel(item.direction)} ${item.amount} ${item.currency}?`,
                       })}
                     >
-                      删除
+                      Xoá
                     </button>
                   ) : null}
                 </div>
@@ -1247,10 +1241,10 @@ const PortfolioPage: React.FC = () => {
                       onClick={() => openDeleteDialog({
                         eventType: 'corporate',
                         id: item.id,
-                        message: `确认删除 ${item.effectiveDate} 的公司行为 ${formatCorporateActionLabel(item.actionType)}（${item.symbol}）吗？`,
+                        message: `Xác nhận xoá sự kiện ${formatCorporateActionLabel(item.actionType)} ngày ${item.effectiveDate} — ${item.symbol}?`,
                       })}
                     >
-                      删除
+                      Xoá
                     </button>
                   ) : null}
                 </div>
@@ -1259,19 +1253,19 @@ const PortfolioPage: React.FC = () => {
                 && ((eventType === 'trade' && tradeEvents.length === 0)
                   || (eventType === 'cash' && cashEvents.length === 0)
                   || (eventType === 'corporate' && corporateEvents.length === 0)) ? (
-                    <p className="text-xs text-muted text-center py-3">暂无流水</p>
+                    <p className="text-xs text-muted text-center py-3">Chưa có dữ liệu</p>
                   ) : null}
             </div>
             <div className="flex items-center justify-between text-xs text-secondary">
-              <span>第 {eventPage} / {totalEventPages} 页</span>
+              <span>Trang {eventPage} / {totalEventPages}</span>
               <div className="flex gap-2">
                 <button type="button" className="btn-secondary text-xs px-3 py-1" disabled={eventPage <= 1}
                   onClick={() => setEventPage((prev) => Math.max(1, prev - 1))}>
-                  上一页
+                  Trước
                 </button>
                 <button type="button" className="btn-secondary text-xs px-3 py-1" disabled={eventPage >= totalEventPages}
                   onClick={() => setEventPage((prev) => Math.min(totalEventPages, prev + 1))}>
-                  下一页
+                  Sau
                 </button>
               </div>
             </div>
@@ -1280,10 +1274,10 @@ const PortfolioPage: React.FC = () => {
       </section>
       <ConfirmDialog
         isOpen={Boolean(pendingDelete)}
-        title="删除错误流水"
-        message={pendingDelete?.message || '确认删除这条流水吗？'}
-        confirmText={deleteLoading ? '删除中...' : '确认删除'}
-        cancelText="取消"
+        title="Xoá lệnh sai"
+        message={pendingDelete?.message || 'Xác nhận xoá lệnh này?'}
+        confirmText={deleteLoading ? 'Đang xoá...' : 'Xác nhận xoá'}
+        cancelText="Huỷ"
         isDanger
         onConfirm={() => void handleConfirmDelete()}
         onCancel={() => {

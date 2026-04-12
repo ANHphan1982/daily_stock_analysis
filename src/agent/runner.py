@@ -31,22 +31,22 @@ logger = logging.getLogger(__name__)
 
 # Tool name → friendly label for progress messages
 _THINKING_TOOL_LABELS: Dict[str, str] = {
-    "get_realtime_quote": "行情获取",
-    "get_daily_history": "K线数据获取",
-    "analyze_trend": "技术指标分析",
-    "get_chip_distribution": "筹码分布分析",
-    "search_stock_news": "新闻搜索",
-    "search_comprehensive_intel": "综合情报搜索",
-    "get_market_indices": "市场概览获取",
-    "get_sector_rankings": "行业板块分析",
-    "get_analysis_context": "历史分析上下文",
-    "get_stock_info": "基本信息获取",
-    "analyze_pattern": "K线形态识别",
-    "get_volume_analysis": "量能分析",
-    "calculate_ma": "均线计算",
-    "get_skill_backtest_summary": "技能回测概览",
-    "get_strategy_backtest_summary": "策略回测概览",
-    "get_stock_backtest_summary": "个股回测数据",
+    "get_realtime_quote": "Lấy dữ liệu thị trường",
+    "get_daily_history": "Lấy dữ liệu nến K",
+    "analyze_trend": "Phân tích chỉ báo kỹ thuật",
+    "get_chip_distribution": "Phân tích phân bổ chip",
+    "search_stock_news": "Tìm kiếm tin tức",
+    "search_comprehensive_intel": "Tìm kiếm thông tin tổng hợp",
+    "get_market_indices": "Lấy tổng quan thị trường",
+    "get_sector_rankings": "Phân tích ngành",
+    "get_analysis_context": "Ngữ cảnh phân tích lịch sử",
+    "get_stock_info": "Lấy thông tin cơ bản",
+    "analyze_pattern": "Nhận dạng mô hình nến",
+    "get_volume_analysis": "Phân tích khối lượng",
+    "calculate_ma": "Tính đường trung bình",
+    "get_skill_backtest_summary": "Tổng quan backtest kỹ năng",
+    "get_strategy_backtest_summary": "Tổng quan backtest chiến lược",
+    "get_stock_backtest_summary": "Dữ liệu backtest cổ phiếu",
 }
 
 

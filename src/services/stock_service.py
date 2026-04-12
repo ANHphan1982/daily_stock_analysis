@@ -160,6 +160,43 @@ class StockService:
             logger.error(f"获取历史数据失败: {e}", exc_info=True)
             return {"stock_code": stock_code, "period": period, "data": []}
     
+    def get_stock_news(self, stock_code: str, max_results: int = 15) -> Dict[str, Any]:
+        """
+        Lấy tin tức liên quan đến mã cổ phiếu từ các báo uy tín Việt Nam.
+
+        Args:
+            stock_code: Mã cổ phiếu (vd: VN:VNM, VNM)
+            max_results: Số bài tối đa
+
+        Returns:
+            Dict với keys: stock_code, items, total, sources
+        """
+        try:
+            from src.search_service import VnNewsProvider
+            symbol = VnNewsProvider._strip_vn_prefix(stock_code)
+            provider = VnNewsProvider()
+            response = provider.search(symbol, max_results=max_results)
+            items = [
+                {
+                    "title": r.title,
+                    "url": r.url,
+                    "source": r.source,
+                    "snippet": r.snippet or None,
+                    "published_date": r.published_date,
+                }
+                for r in response.results
+            ]
+            sources = list(dict.fromkeys(r.source for r in response.results))
+            return {
+                "stock_code": stock_code,
+                "items": items,
+                "total": len(items),
+                "sources": sources,
+            }
+        except Exception as e:
+            logger.error(f"Lấy tin tức {stock_code} thất bại: {e}", exc_info=True)
+            return {"stock_code": stock_code, "items": [], "total": 0, "sources": []}
+
     def _get_placeholder_quote(self, stock_code: str) -> Dict[str, Any]:
         """
         获取占位行情数据（用于测试）
