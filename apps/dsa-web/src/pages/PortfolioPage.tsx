@@ -5,6 +5,8 @@ import { portfolioApi } from '../api/portfolio';
 import type { ParsedApiError } from '../api/error';
 import { getParsedApiError } from '../api/error';
 import { ApiErrorAlert, Card, Badge, ConfirmDialog } from '../components/common';
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '../components/ui/table';
+import { Progress } from '../components/ui/progress';
 import { toDateInputValue } from '../utils/format';
 import { formatMoney } from '../utils/formatMoney';
 import type {
@@ -917,38 +919,58 @@ const PortfolioPage: React.FC = () => {
             <span className="text-xs text-secondary">{positionRows.length} mã</span>
           </div>
           {positionRows.length === 0 ? (
-            <p className="text-sm text-muted py-6 text-center">Chưa có vị thế nào</p>
+            <p className="text-sm text-secondary-text py-6 text-center">Chưa có vị thế nào</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-secondary border-b border-white/10">
-                  <tr>
-                    <th className="text-left py-2 pr-2">Tài khoản</th>
-                    <th className="text-left py-2 pr-2">Mã CP</th>
-                    <th className="text-right py-2 pr-2">SL</th>
-                    <th className="text-right py-2 pr-2">Giá vốn</th>
-                    <th className="text-right py-2 pr-2">Giá TT</th>
-                    <th className="text-right py-2 pr-2">Giá trị TT</th>
-                    <th className="text-right py-2">Lãi/lỗ chưa TT</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positionRows.map((row) => (
-                    <tr key={`${row.accountId}-${row.symbol}-${row.market}`} className="border-b border-white/5">
-                      <td className="py-2 pr-2 text-secondary">{row.accountName}</td>
-                      <td className="py-2 pr-2 font-mono text-foreground">{row.symbol}</td>
-                      <td className="py-2 pr-2 text-right">{row.quantity.toFixed(2)}</td>
-                      <td className="py-2 pr-2 text-right">{row.avgCost.toFixed(4)}</td>
-                      <td className="py-2 pr-2 text-right">{row.lastPrice.toFixed(4)}</td>
-                      <td className="py-2 pr-2 text-right">{formatMoney(row.marketValueBase, row.valuationCurrency)}</td>
-                      <td className={`py-2 text-right ${row.unrealizedPnlBase >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {formatMoney(row.unrealizedPnlBase, row.valuationCurrency)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/40 hover:bg-transparent">
+                  <TableHead className="text-xs">Tài khoản</TableHead>
+                  <TableHead className="text-xs">Mã CP</TableHead>
+                  <TableHead className="text-xs text-right">SL</TableHead>
+                  <TableHead className="text-xs text-right">Giá vốn</TableHead>
+                  <TableHead className="text-xs text-right">Giá TT</TableHead>
+                  <TableHead className="text-xs text-right">Giá trị TT</TableHead>
+                  <TableHead className="text-xs text-right min-w-[120px]">Lãi/lỗ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {positionRows.map((row) => {
+                  const isGain = row.unrealizedPnlBase >= 0;
+                  const pnlPct = row.avgCost > 0
+                    ? ((row.lastPrice - row.avgCost) / row.avgCost) * 100
+                    : 0;
+                  return (
+                    <TableRow
+                      key={`${row.accountId}-${row.symbol}-${row.market}`}
+                      className="border-border/30"
+                    >
+                      <TableCell className="text-xs text-secondary-text">{row.accountName}</TableCell>
+                      <TableCell className="font-mono font-medium text-foreground">{row.symbol}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.quantity.toFixed(2)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.avgCost.toFixed(4)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.lastPrice.toFixed(4)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatMoney(row.marketValueBase, row.valuationCurrency)}</TableCell>
+                      <TableCell className="text-right min-w-[120px]">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={isGain ? 'text-success font-medium' : 'text-danger font-medium'}>
+                            {isGain ? '+' : ''}{formatMoney(row.unrealizedPnlBase, row.valuationCurrency)}
+                          </span>
+                          <div className="flex items-center gap-1.5 w-full justify-end">
+                            <span className={`text-[10px] ${isGain ? 'text-success' : 'text-danger'}`}>
+                              {isGain ? '+' : ''}{pnlPct.toFixed(2)}%
+                            </span>
+                            <Progress
+                              value={Math.min(Math.abs(pnlPct), 100)}
+                              className={`h-1 w-12 ${isGain ? '[&>[data-slot=progress-indicator]]:bg-success' : '[&>[data-slot=progress-indicator]]:bg-danger'}`}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </Card>
 

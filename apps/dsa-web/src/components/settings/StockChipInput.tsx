@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useState } from 'react';
+import { Badge } from '../ui/badge';
 
 interface StockChipInputProps {
   value: string;
@@ -60,10 +61,11 @@ export const StockChipInput: React.FC<StockChipInputProps> = ({
   return (
     <div className="flex flex-wrap gap-1.5 rounded-xl border border-border/55 bg-card/94 p-2 min-h-[44px]">
       {codes.map((code) => (
-        <span
+        <Badge
           key={code}
           data-testid={`chip-${code}`}
-          className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary"
+          variant="outline"
+          className="gap-1 rounded-full border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary hover:bg-primary/15"
         >
           <span data-testid={`chip-label-${code}`}>{code}</span>
           <button
@@ -78,7 +80,7 @@ export const StockChipInput: React.FC<StockChipInputProps> = ({
               <path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
-        </span>
+        </Badge>
       ))}
       <input
         data-testid="chip-input"

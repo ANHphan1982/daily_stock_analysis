@@ -1,5 +1,13 @@
 import React, { useId } from 'react';
 import { cn } from '../../utils/cn';
+import { Label } from '../ui/label';
+import {
+  Select as ShadSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 
 interface SelectOption {
   value: string;
@@ -21,7 +29,8 @@ interface SelectProps {
 }
 
 /**
- * Select component with terminal-inspired styling.
+ * Select component — wraps ShadCN Select (Radix) with project-specific styling.
+ * Keyboard-navigable and accessible out of the box.
  */
 export const Select: React.FC<SelectProps> = ({
   id,
@@ -38,44 +47,30 @@ export const Select: React.FC<SelectProps> = ({
 
   return (
     <div className={cn('flex flex-col', className)}>
-      {label ? <label htmlFor={resolvedId} className="mb-2 text-sm font-medium text-foreground">{label}</label> : null}
-      <div className="relative">
-        <select
+      {label ? (
+        <Label htmlFor={resolvedId} className="mb-2 text-sm font-medium text-foreground">
+          {label}
+        </Label>
+      ) : null}
+      <ShadSelect
+        value={value}
+        onValueChange={onChange}
+        disabled={disabled}
+      >
+        <SelectTrigger
           id={resolvedId}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          className={cn(
-            'h-11 w-full appearance-none rounded-xl border border-subtle bg-card px-4 py-2.5 pr-10 text-sm text-foreground',
-            'shadow-soft-card transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-cyan/15 focus:border-cyan/40',
-            'hover:border-subtle-hover',
-            disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
-          )}
+          className="h-11 w-full rounded-xl border-subtle bg-card px-4 text-sm text-foreground shadow-soft-card transition-all hover:border-subtle-hover focus:ring-4 focus:ring-cyan/15 focus:border-cyan/40"
         >
-          {placeholder && (
-            <option value="" disabled>
-              {placeholder}
-            </option>
-          )}
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
           {options.map((option) => (
-            <option key={option.value} value={option.value} className="bg-elevated text-foreground">
+            <SelectItem key={option.value} value={option.value}>
               {option.label}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-
-        {/* Dropdown arrow */}
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-          <svg
-            className="h-4 w-4 text-secondary-text"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </div>
+        </SelectContent>
+      </ShadSelect>
     </div>
   );
 };

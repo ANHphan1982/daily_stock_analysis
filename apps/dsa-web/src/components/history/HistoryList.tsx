@@ -4,6 +4,7 @@ import type { HistoryItem } from '../../types/analysis';
 import { Badge, Button, ScrollArea } from '../common';
 import { DashboardPanelHeader, DashboardStateBlock } from '../dashboard';
 import { HistoryListItem } from './HistoryListItem';
+import { Skeleton } from '../ui/skeleton';
 
 interface HistoryListProps {
   items: HistoryItem[];
@@ -144,11 +145,18 @@ export const HistoryList: React.FC<HistoryListProps> = ({
         </div>
 
         {isLoading ? (
-          <DashboardStateBlock
-            loading
-            compact
-            title="Đang tải lịch sử..."
-          />
+          <div className="space-y-2.5 py-1" aria-busy="true" aria-label="Đang tải lịch sử">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border/40 bg-card/50 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-14 rounded-md" />
+                  <Skeleton className="h-3.5 w-24 rounded-md" />
+                </div>
+                <Skeleton className="h-3 w-full rounded-md" />
+                <Skeleton className="h-3 w-2/3 rounded-md" />
+              </div>
+            ))}
+          </div>
         ) : items.length === 0 ? (
           <DashboardStateBlock
             title="Chưa có lịch sử phân tích"

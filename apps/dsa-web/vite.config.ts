@@ -21,6 +21,11 @@ export default defineConfig({
       },
     },
   },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   build: {
     // 打包输出到项目根目录的 static 文件夹
     outDir: path.resolve(__dirname, '../../static'),

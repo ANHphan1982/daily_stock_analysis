@@ -5,6 +5,7 @@ import type { ConfigValidationIssue, SystemConfigFieldSchema, SystemConfigItem }
 import { getFieldDescriptionZh, getFieldTitleZh } from '../../utils/systemConfigI18n';
 import { cn } from '../../utils/cn';
 import { StockChipInput } from './StockChipInput';
+import { Switch } from '../ui/switch';
 
 /** Keys that should render as chip inputs instead of plain text */
 const CHIP_INPUT_KEYS = new Set(['STOCK_LIST', 'STOCK_POOL', 'WATCHLIST']);
@@ -102,16 +103,15 @@ function renderFieldControl(
   if (controlType === 'switch') {
     const checked = value.trim().toLowerCase() === 'true';
     return (
-      <label className="inline-flex cursor-pointer items-center gap-3">
-        <input
+      <div className="flex items-center gap-3">
+        <Switch
           id={controlId}
-          type="checkbox"
           checked={checked}
           disabled={disabled || !schema?.isEditable}
-          onChange={(event) => onChange(event.target.checked ? 'true' : 'false')}
+          onCheckedChange={(next) => onChange(next ? 'true' : 'false')}
         />
         <span className="text-sm text-secondary-text">{checked ? 'Đã bật' : 'Chưa bật'}</span>
-      </label>
+      </div>
     );
   }
 

@@ -1,5 +1,6 @@
 import type React from 'react';
-import { Card } from './Card';
+import { cn } from '../../utils/cn';
+import { Card as ShadCard, CardHeader, CardTitle, CardDescription, CardContent, CardAction } from '../ui/card';
 
 interface SectionCardProps {
   title: string;
@@ -17,15 +18,24 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   className = '',
 }) => {
   return (
-    <Card className={className} padding="md" variant="bordered">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          {subtitle ? <span className="label-uppercase">{subtitle}</span> : null}
-          <h2 className="mt-1 text-lg font-semibold text-foreground">{title}</h2>
+    <ShadCard
+      className={cn(
+        'terminal-card gap-0 rounded-2xl border-border/60 bg-card/80 shadow-soft-card backdrop-blur-sm p-5',
+        className,
+      )}
+    >
+      <CardHeader className="px-0 pt-0 pb-4">
+        {subtitle ? (
+          <CardDescription className="label-uppercase">{subtitle}</CardDescription>
+        ) : null}
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="mt-1 text-lg font-semibold text-foreground">{title}</CardTitle>
+          {actions ? (
+            <CardAction className="flex shrink-0 items-center gap-2">{actions}</CardAction>
+          ) : null}
         </div>
-        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
-      </div>
-      {children}
-    </Card>
+      </CardHeader>
+      <CardContent className="p-0">{children}</CardContent>
+    </ShadCard>
   );
 };

@@ -13,6 +13,8 @@ import { CandlestickChart } from '../components/charts/CandlestickChart';
 import { useDashboardLifecycle, useHomeDashboardState } from '../hooks';
 import { useOHLCVStore } from '../stores/ohlcvStore';
 import { getReportText, normalizeReportLanguage } from '../utils/reportLanguage';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
+import { BarChart3, FileText } from 'lucide-react';
 
 type MainTab = 'report' | 'recommendations';
 
@@ -246,65 +248,57 @@ const HomePage: React.FC = () => {
           ) : null}
 
           <section className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-            {/* ── Tab bar ── */}
-            <div className="flex shrink-0 border-b border-[var(--border-dim)] px-3 md:px-6">
-              <button
-                type="button"
-                onClick={() => setMainTab('recommendations')}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${
-                  mainTab === 'recommendations'
-                    ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
-                    : 'border-transparent text-muted-text hover:text-foreground'
-                }`}
-              >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Khuyến nghị hôm nay
-              </button>
-              <button
-                type="button"
-                onClick={() => setMainTab('report')}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${
-                  mainTab === 'report'
-                    ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
-                    : 'border-transparent text-muted-text hover:text-foreground'
-                }`}
-              >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Phân tích cổ phiếu
-                {selectedReport && (
-                  <span className="ml-1 rounded-full bg-[hsl(var(--primary)/0.15)] px-1.5 py-0.5 text-[10px] text-[hsl(var(--primary))]">
-                    {selectedReport.meta.stockCode.replace('VN:', '')}
-                  </span>
-                )}
-              </button>
-            </div>
+            <Tabs
+              value={mainTab}
+              onValueChange={(v) => setMainTab(v as MainTab)}
+              className="flex flex-1 min-h-0 flex-col gap-0"
+            >
+              {/* ── Tab bar ── */}
+              <div className="shrink-0 border-b border-[var(--border-dim)] px-3 md:px-6">
+                <TabsList className="h-auto gap-0 rounded-none bg-transparent p-0">
+                  <TabsTrigger
+                    value="recommendations"
+                    className="flex items-center gap-1.5 rounded-none border-0 border-b-2 border-transparent px-3 py-2.5 text-xs font-semibold text-muted-text transition-colors data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground"
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Khuyến nghị hôm nay
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="report"
+                    className="flex items-center gap-1.5 rounded-none border-0 border-b-2 border-transparent px-3 py-2.5 text-xs font-semibold text-muted-text transition-colors data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Phân tích cổ phiếu
+                    {selectedReport && (
+                      <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary">
+                        {selectedReport.meta.stockCode.replace('VN:', '')}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-            {/* ── Tab content ── */}
-            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-3 pb-4 md:px-6">
-              {error ? (
-                <ApiErrorAlert error={error} className="mb-3 mt-3" onDismiss={clearError} />
-              ) : null}
+              {/* ── Tab content ── */}
+              <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-3 pb-4 md:px-6">
+                {error ? (
+                  <ApiErrorAlert error={error} className="mb-3 mt-3" onDismiss={clearError} />
+                ) : null}
 
-              {/* Tab: Khuyến nghị */}
-              {mainTab === 'recommendations' && (
-                <div className="max-w-4xl pt-3 pb-8">
-                  <RecommendationsPanel
-                    onAnalyzeStock={(stockCode) => {
-                      const code = stockCode.replace(/^VN:/i, '');
-                      setQuery(code);
-                      handleSubmitAnalysis(stockCode);
-                    }}
-                  />
-                </div>
-              )}
+                {/* Tab: Khuyến nghị */}
+                <TabsContent value="recommendations" className="mt-0">
+                  <div className="max-w-4xl pt-3 pb-8">
+                    <RecommendationsPanel
+                      onAnalyzeStock={(stockCode) => {
+                        const code = stockCode.replace(/^VN:/i, '');
+                        setQuery(code);
+                        handleSubmitAnalysis(stockCode);
+                      }}
+                    />
+                  </div>
+                </TabsContent>
 
-              {/* Tab: Phân tích cổ phiếu */}
-              {mainTab === 'report' && (
-                <>
+                {/* Tab: Phân tích cổ phiếu */}
+                <TabsContent value="report" className="mt-0">
                   {isLoadingReport ? (
                     <div className="flex h-full flex-col items-center justify-center">
                       <DashboardStateBlock title="Đang tải báo cáo..." loading />
@@ -366,9 +360,9 @@ const HomePage: React.FC = () => {
                       />
                     </div>
                   )}
-                </>
-              )}
-            </div>
+                </TabsContent>
+              </div>
+            </Tabs>
           </section>
         </div>
       </div>

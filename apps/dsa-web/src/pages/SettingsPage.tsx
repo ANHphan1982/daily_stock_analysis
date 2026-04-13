@@ -4,6 +4,8 @@ import { useAuth, useSystemConfig } from '../hooks';
 import { createParsedApiError, getParsedApiError, type ParsedApiError } from '../api/error';
 import { systemConfigApi } from '../api/systemConfig';
 import { ApiErrorAlert, Button, ConfirmDialog } from '../components/common';
+import { Card as ShadCard, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Separator } from '../components/ui/separator';
 import {
   AuthSettingsCard,
   ChangePasswordCard,
@@ -224,47 +226,54 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="min-h-full px-4 pb-6 pt-4 md:px-6">
-      <div className="mb-5 rounded-xl bg-card/50 px-5 py-5 shadow-soft-card-strong">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Cài đặt hệ thống</h1>
-            <p className="text-xs leading-6 text-muted-text">
-              Quản lý thống nhất mô hình, nguồn dữ liệu, thông báo, xác thực và nhập liệu.
-            </p>
+      <ShadCard className="mb-5 gap-0 rounded-2xl border-border/60 bg-card/70 shadow-soft-card backdrop-blur-sm">
+        <CardHeader className="px-5 pt-5 pb-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <CardTitle className="text-xl font-semibold tracking-tight text-foreground">
+                Cài đặt hệ thống
+              </CardTitle>
+              <CardDescription className="mt-1 text-xs leading-6 text-muted-text">
+                Quản lý thống nhất mô hình, nguồn dữ liệu, thông báo, xác thực và nhập liệu.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Button
+                type="button"
+                variant="settings-secondary"
+                className="border-border/50 bg-muted/30 hover:border-border/70"
+                onClick={resetDraft}
+                disabled={isLoading || isSaving}
+              >
+                Đặt lại
+              </Button>
+              <Button
+                type="button"
+                variant="settings-primary"
+                onClick={() => void save()}
+                disabled={!hasDirty || isSaving || isLoading}
+                isLoading={isSaving}
+                loadingText="Đang lưu..."
+              >
+                {isSaving ? 'Đang lưu...' : `Lưu cấu hình${dirtyCount ? ` (${dirtyCount})` : ''}`}
+              </Button>
+            </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="settings-secondary"
-              className="border-border/50 bg-muted/30 hover:border-border/70"
-              onClick={resetDraft}
-              disabled={isLoading || isSaving}
-            >
-              Đặt lại
-            </Button>
-            <Button
-              type="button"
-              variant="settings-primary"
-              onClick={() => void save()}
-              disabled={!hasDirty || isSaving || isLoading}
-              isLoading={isSaving}
-              loadingText="Đang lưu..."
-            >
-              {isSaving ? 'Đang lưu...' : `Lưu cấu hình${dirtyCount ? ` (${dirtyCount})` : ''}`}
-            </Button>
-          </div>
-        </div>
+        </CardHeader>
 
         {saveError ? (
-          <ApiErrorAlert
-            className="mt-3"
-            error={saveError}
-            actionLabel={retryAction === 'save' ? 'Thử lại lưu' : undefined}
-            onAction={retryAction === 'save' ? () => void retry() : undefined}
-          />
+          <>
+            <Separator className="bg-border/40" />
+            <CardContent className="px-5 py-4">
+              <ApiErrorAlert
+                error={saveError}
+                actionLabel={retryAction === 'save' ? 'Thử lại lưu' : undefined}
+                onAction={retryAction === 'save' ? () => void retry() : undefined}
+              />
+            </CardContent>
+          </>
         ) : null}
-      </div>
+      </ShadCard>
 
       {loadError ? (
         <ApiErrorAlert

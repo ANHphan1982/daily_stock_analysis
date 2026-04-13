@@ -1,5 +1,13 @@
 import type React from 'react';
-import { createPortal } from 'react-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../ui/dialog';
+import { Button } from './Button';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -13,8 +21,8 @@ interface ConfirmDialogProps {
 }
 
 /**
- * Generic confirmation dialog component.
- * Style is consistent with ChatPage.
+ * Generic confirmation dialog — wraps ShadCN Dialog (Radix UI).
+ * Provides built-in focus trap, Escape key, and smooth animations.
  */
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   isOpen,
@@ -26,44 +34,26 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  if (!isOpen) return null;
-
-  const dialog = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all"
-      onClick={onCancel}
-    >
-      <div
-        className="mx-4 w-full max-w-sm rounded-xl border border-border/70 bg-elevated p-6 shadow-2xl animate-in fade-in zoom-in duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="mb-2 text-lg font-medium text-foreground">{title}</h3>
-        <p className="text-sm text-secondary-text mb-6 leading-relaxed">
-          {message}
-        </p>
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg border border-border/70 px-4 py-2 text-sm font-medium text-secondary-text transition-colors hover:bg-hover hover:text-foreground"
-          >
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent showCloseButton={false} className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className="leading-relaxed">{message}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="secondary" size="sm" onClick={onCancel}>
             {cancelText}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={isDanger ? 'danger' : 'primary'}
+            size="sm"
             onClick={onConfirm}
-            className={`rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors ${
-              isDanger
-                ? 'bg-red-500/80 hover:bg-red-500 shadow-lg shadow-red-500/20'
-                : 'bg-cyan/80 hover:bg-cyan shadow-lg shadow-cyan/20'
-            }`}
           >
             {confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-
-  return createPortal(dialog, document.body);
 };

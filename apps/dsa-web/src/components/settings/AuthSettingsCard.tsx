@@ -111,7 +111,7 @@ export const AuthSettingsCard: React.FC = () => {
               checked={desiredEnabled}
               disabled={isSubmitting}
               label={desiredEnabled ? 'Bật' : 'Tắt'}
-              onChange={(event) => setDesiredEnabled(event.target.checked)}
+              onCheckedChange={(checked) => setDesiredEnabled(checked === true)}
               containerClassName="bg-muted/30 border border-border/50 rounded-full px-4 py-2 shadow-soft-card-strong transition-all hover:bg-muted/40"
             />
           </div>

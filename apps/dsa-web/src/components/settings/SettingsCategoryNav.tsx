@@ -3,6 +3,8 @@ import { Badge } from '../common';
 import { getCategoryDescriptionZh, getCategoryTitleZh } from '../../utils/systemConfigI18n';
 import type { SystemConfigCategorySchema, SystemConfigItem } from '../../types/systemConfig';
 import { cn } from '../../utils/cn';
+import { Card as ShadCard, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
+import { Separator } from '../ui/separator';
 
 interface SettingsCategoryNavProps {
   categories: SystemConfigCategorySchema[];
@@ -18,52 +20,64 @@ export const SettingsCategoryNav: React.FC<SettingsCategoryNavProps> = ({
   onSelect,
 }) => {
   return (
-    <div className="h-full rounded-[1.5rem] border settings-border bg-card p-4 shadow-soft-card-strong">
-      <div className="mb-4">
-        <p className="settings-accent-text text-xs font-semibold uppercase tracking-[0.3em]">Danh mục cấu hình</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted-text">Sắp xếp cài đặt hệ thống và xác thực theo module.</p>
-      </div>
+    <ShadCard className="gap-0 h-full rounded-[1.5rem] border settings-border bg-card shadow-soft-card-strong">
+      <CardHeader className="px-4 pt-4 pb-3">
+        <CardTitle className="settings-accent-text text-xs font-semibold uppercase tracking-[0.3em]">
+          Danh mục cấu hình
+        </CardTitle>
+        <CardDescription className="mt-1 text-[11px] leading-relaxed text-muted-text">
+          Sắp xếp cài đặt hệ thống và xác thực theo module.
+        </CardDescription>
+      </CardHeader>
 
-      <div className="space-y-2.5">
-        {categories.map((category) => {
-          const isActive = category.category === activeCategory;
-          const count = (itemsByCategory[category.category] || []).length;
-          const title = getCategoryTitleZh(category.category, category.title);
-          const description = getCategoryDescriptionZh(category.category, category.description);
+      <Separator className="bg-border/40" />
 
-          return (
-            <button
-              key={category.category}
-              type="button"
-              className={cn(
-                'w-full rounded-[1.1rem] border px-3 py-3 text-left transition-all duration-200',
-                isActive
-                  ? 'settings-accent-badge-soft settings-shadow-accent'
-                  : 'settings-border settings-surface hover:settings-border-strong hover:settings-surface-hover',
-              )}
-              onClick={() => onSelect(category.category)}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className={cn('text-sm font-semibold tracking-tight', isActive ? 'text-foreground' : 'text-secondary-text')}>
-                    {title}
-                  </p>
-                  {description ? (
-                    <p className={cn('mt-1 line-clamp-2 text-xs leading-5', isActive ? 'text-secondary-text' : 'text-muted-text')}>{description}</p>
-                  ) : null}
-                </div>
-                <Badge
-                  variant={isActive ? 'info' : 'default'}
-                  size="sm"
-                  className={isActive ? 'settings-accent-badge' : 'settings-border settings-surface-hover text-muted-text'}
+      <CardContent className="p-3">
+        <div className="space-y-1.5">
+          {categories.map((category, idx) => {
+            const isActive   = category.category === activeCategory;
+            const count      = (itemsByCategory[category.category] || []).length;
+            const title      = getCategoryTitleZh(category.category, category.title);
+            const description = getCategoryDescriptionZh(category.category, category.description);
+
+            return (
+              <div key={category.category}>
+                {idx > 0 && <Separator className="my-1.5 bg-border/20" />}
+                <button
+                  type="button"
+                  className={cn(
+                    'w-full rounded-[1.1rem] border px-3 py-3 text-left transition-all duration-200',
+                    isActive
+                      ? 'settings-accent-badge-soft settings-shadow-accent'
+                      : 'settings-border settings-surface hover:settings-border-strong hover:settings-surface-hover',
+                  )}
+                  onClick={() => onSelect(category.category)}
                 >
-                  {count}
-                </Badge>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={cn('text-sm font-semibold tracking-tight', isActive ? 'text-foreground' : 'text-secondary-text')}>
+                        {title}
+                      </p>
+                      {description ? (
+                        <p className={cn('mt-1 line-clamp-2 text-xs leading-5', isActive ? 'text-secondary-text' : 'text-muted-text')}>
+                          {description}
+                        </p>
+                      ) : null}
+                    </div>
+                    <Badge
+                      variant={isActive ? 'info' : 'default'}
+                      size="sm"
+                      className={isActive ? 'settings-accent-badge' : 'settings-border settings-surface-hover text-muted-text'}
+                    >
+                      {count}
+                    </Badge>
+                  </div>
+                </button>
               </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </ShadCard>
   );
 };

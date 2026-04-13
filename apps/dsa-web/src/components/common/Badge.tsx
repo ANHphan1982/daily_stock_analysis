@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
+import { Badge as ShadBadge } from '../ui/badge';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'history';
 
@@ -30,7 +31,7 @@ const glowStyles: Record<BadgeVariant, string> = {
 };
 
 /**
- * Badge component with multiple variants and optional glow styling.
+ * Badge component — wraps ShadCN Badge with project-specific variants.
  */
 export const Badge: React.FC<BadgeProps> = ({
   children,
@@ -42,9 +43,10 @@ export const Badge: React.FC<BadgeProps> = ({
   const sizeStyles = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm';
 
   return (
-    <span
+    <ShadBadge
+      variant="outline"
       className={cn(
-        'inline-flex items-center gap-1 rounded-full border font-medium backdrop-blur-sm',
+        'rounded-full border font-medium backdrop-blur-sm',
         sizeStyles,
         variantStyles[variant],
         glow && `shadow-lg ${glowStyles[variant]}`,
@@ -52,6 +54,6 @@ export const Badge: React.FC<BadgeProps> = ({
       )}
     >
       {children}
-    </span>
+    </ShadBadge>
   );
 };

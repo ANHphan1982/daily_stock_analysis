@@ -3,40 +3,39 @@ import { useId, useState } from 'react';
 import { Lock, Key } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { EyeToggleIcon } from './EyeToggleIcon';
+import { Input as ShadInput } from '../ui/input';
+import { Label } from '../ui/label';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   hint?: string;
   error?: string;
   trailingAction?: React.ReactNode;
-  /** Enables the built-in password visibility toggle. */
   allowTogglePassword?: boolean;
-  /** Controls the leading icon style. */
   iconType?: 'password' | 'key' | 'none';
-  /** Allows external visibility state control. */
   passwordVisible?: boolean;
-  /** Notifies the parent when visibility changes in controlled mode. */
   onPasswordVisibleChange?: (visible: boolean) => void;
 }
 
-export const Input = ({ 
-  label, 
-  hint, 
-  error, 
-  className = '', 
-  id, 
-  trailingAction, 
+export const Input = ({
+  label,
+  hint,
+  error,
+  className = '',
+  id,
+  trailingAction,
   allowTogglePassword,
   iconType = 'none',
   passwordVisible,
   onPasswordVisibleChange,
-  ...props 
+  ...props
 }: InputProps) => {
   const generatedId = useId();
   const inputId = id ?? props.name ?? generatedId;
   const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
-  const describedBy = [props['aria-describedby'], errorId ?? hintId].filter(Boolean).join(' ') || undefined;
+  const describedBy =
+    [props['aria-describedby'], errorId ?? hintId].filter(Boolean).join(' ') || undefined;
   const ariaInvalid = props['aria-invalid'] ?? (error ? true : undefined);
 
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -45,82 +44,75 @@ export const Input = ({
   const visible = isVisibilityControlled ? passwordVisible : isPasswordVisible;
   const effectiveType = isPasswordInput && allowTogglePassword && visible ? 'text' : props.type;
 
-  const renderLeadingIcon = () => {
-    if (iconType === 'password') {
-      return <Lock className="h-4 w-4 text-muted-text/55" />;
-    }
-    if (iconType === 'key') {
-      return <Key className="h-4 w-4 text-muted-text/55" />;
-    }
-    return null;
-  };
+  const leadingIcon =
+    iconType === 'password' ? (
+      <Lock className="h-4 w-4 text-muted-text/55" />
+    ) : iconType === 'key' ? (
+      <Key className="h-4 w-4 text-muted-text/55" />
+    ) : null;
 
-  const leadingIcon = renderLeadingIcon();
   const inputStyle = error
     ? {
-      ...props.style,
-      ['--input-surface-border-focus' as string]: 'hsla(var(--destructive), 0.4)',
-      ['--input-surface-focus-ring' as string]: '0 0 0 4px hsla(var(--destructive), 0.1)',
-    }
+        ...props.style,
+        ['--input-surface-border-focus' as string]: 'hsla(var(--destructive), 0.4)',
+        ['--input-surface-focus-ring' as string]: '0 0 0 4px hsla(var(--destructive), 0.1)',
+      }
     : props.style;
 
-  const defaultTrailingAction = isPasswordInput && allowTogglePassword ? (
-    <button
-      type="button"
-      className={cn(
-        'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 focus:outline-none focus:ring-2',
-        'hover:border-warning/40 hover:text-warning hover:shadow-[0_0_10px_hsla(var(--warning),0.15)]',
-        visible
-          ? 'border-warning/40 bg-warning/15 text-warning shadow-[0_0_10px_hsla(var(--warning),0.15)]'
-          : 'border-border/40 bg-muted/20 text-muted-text focus:ring-primary/30'
-      )}
-      onClick={() => {
-        const nextVisible = !visible;
-        if (!isVisibilityControlled) {
-          setIsPasswordVisible(nextVisible);
-        }
-        onPasswordVisibleChange?.(nextVisible);
-      }}
-      aria-label={visible ? '隐藏内容' : '显示内容'}
-      tabIndex={-1}
-      title={visible ? '隐藏' : '显示'}
-    >
-      <EyeToggleIcon visible={visible} />
-    </button>
-  ) : null;
+  const defaultTrailingAction =
+    isPasswordInput && allowTogglePassword ? (
+      <button
+        type="button"
+        className={cn(
+          'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 focus:outline-none focus:ring-2',
+          'hover:border-warning/40 hover:text-warning hover:shadow-[0_0_10px_hsla(var(--warning),0.15)]',
+          visible
+            ? 'border-warning/40 bg-warning/15 text-warning shadow-[0_0_10px_hsla(var(--warning),0.15)]'
+            : 'border-border/40 bg-muted/20 text-muted-text focus:ring-primary/30',
+        )}
+        onClick={() => {
+          const nextVisible = !visible;
+          if (!isVisibilityControlled) setIsPasswordVisible(nextVisible);
+          onPasswordVisibleChange?.(nextVisible);
+        }}
+        aria-label={visible ? '隐藏内容' : '显示内容'}
+        tabIndex={-1}
+        title={visible ? '隐藏' : '显示'}
+      >
+        <EyeToggleIcon visible={visible} />
+      </button>
+    ) : null;
 
-  const finalTrailingAction = trailingAction || defaultTrailingAction;
+  const finalTrailingAction = trailingAction ?? defaultTrailingAction;
 
   return (
     <div className="flex flex-col">
-      {label ? <label htmlFor={inputId} className="mb-2 text-sm font-medium text-foreground">{label}</label> : null}
+      {label ? (
+        <Label htmlFor={inputId} className="mb-2 text-sm font-medium text-foreground">
+          {label}
+        </Label>
+      ) : null}
       <div className="relative flex items-center">
         {leadingIcon && (
-          <div className="absolute left-3.5 z-10 pointer-events-none">
-            {leadingIcon}
-          </div>
+          <div className="absolute left-3.5 z-10 pointer-events-none">{leadingIcon}</div>
         )}
-        <input
+        <ShadInput
           id={inputId}
           aria-describedby={describedBy}
           aria-invalid={ariaInvalid}
           style={inputStyle}
           className={cn(
-            'input-surface input-focus-glow h-11 w-full rounded-xl border bg-transparent px-4 text-sm transition-all',
-            'focus:outline-none',
+            'input-surface input-focus-glow h-11 rounded-xl border bg-transparent px-4 text-sm transition-all focus:outline-none',
             error ? 'border-danger/30' : '',
             leadingIcon ? 'pl-10' : '',
             finalTrailingAction ? 'pr-12' : '',
-            'disabled:cursor-not-allowed disabled:opacity-60',
             className,
           )}
           {...props}
           type={effectiveType}
         />
         {finalTrailingAction ? (
-          <div className="absolute inset-y-0 right-2 flex items-center">
-            {finalTrailingAction}
-          </div>
+          <div className="absolute inset-y-0 right-2 flex items-center">{finalTrailingAction}</div>
         ) : null}
       </div>
       {error ? (
