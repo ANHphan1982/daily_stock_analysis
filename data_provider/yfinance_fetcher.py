@@ -122,8 +122,8 @@ class YfinanceFetcher(BaseFetcher):
             logger.debug(f"转换港股代码: {stock_code} -> {hk_code}.HK")
             return f"{hk_code}.HK"
 
-        # 已经包含后缀的情况
-        if '.SS' in code or '.SZ' in code or '.HK' in code or '.BJ' in code:
+        # 已经包含后缀的情况 (含越南 .VN / .HN)
+        if '.SS' in code or '.SZ' in code or '.HK' in code or '.BJ' in code or '.VN' in code or '.HN' in code:
             return code
 
         # 去除可能的 .SH 后缀
@@ -639,6 +639,10 @@ class YfinanceFetcher(BaseFetcher):
                 index_name=index_name,
             )
 
+        # 越南股票: SYMBOL.VN 格式
+        if stock_code.upper().endswith('.VN') or stock_code.upper().endswith('.HN'):
+            return self._get_vn_realtime_quote(stock_code.strip().upper(), yf)
+
         # 仅处理美股股票
         if not self._is_us_stock(stock_code):
             logger.debug(f"[Yfinance] {stock_code} 不是美股，跳过")
@@ -730,6 +734,44 @@ class YfinanceFetcher(BaseFetcher):
         except Exception as e:
             logger.warning(f"[Yfinance] 获取美股 {stock_code} 实时行情失败: {e}，尝试 Stooq 兜底")
             return self._get_us_stock_quote_from_stooq(stock_code)
+
+    def _get_vn_realtime_quote(self, yf_code: str, yf) -> Optional[UnifiedRealtimeQuote]:
+        """获取越南股票实时行情（yfinance SYMBOL.VN 格式）。"""
+        try:
+            ticker = yf.Ticker(yf_code)
+            hist = ticker.history(period='2d')
+            if hist.empty:
+                logger.debug(f"[Yfinance] 越南股票 {yf_code} 无数据")
+                return None
+            today = hist.iloc[-1]
+            prev = hist.iloc[-2] if len(hist) > 1 else today
+            price = float(today['Close'])
+            prev_close = float(prev['Close'])
+            change_amount = price - prev_close
+            change_pct = (change_amount / prev_close * 100) if prev_close else 0.0
+            try:
+                name = ticker.info.get('shortName') or ticker.info.get('longName') or yf_code
+            except Exception:
+                name = yf_code
+            return UnifiedRealtimeQuote(
+                code=yf_code,
+                name=name,
+                source=RealtimeSource.FALLBACK,
+                price=price,
+                change_pct=round(change_pct, 2),
+                change_amount=round(change_amount, 4),
+                volume=int(today['Volume']),
+                amount=None,
+                open_price=float(today['Open']),
+                high=float(today['High']),
+                low=float(today['Low']),
+                pre_close=prev_close,
+                pe_ratio=None,
+                pb_ratio=None,
+            )
+        except Exception as exc:
+            logger.debug(f"[Yfinance] 越南股票 {yf_code} 实时行情失败: {exc}")
+            return None
 
 
 if __name__ == "__main__":

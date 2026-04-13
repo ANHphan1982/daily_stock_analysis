@@ -61,11 +61,19 @@ class BacktestEngine:
     )
     _BEARISH_KEYWORDS = (
         # Vietnamese
-        "bán mạnh", "giảm vị thế", "bán",
+        "bán mạnh", "bán",
         # Chinese
-        "卖出", "减仓", "强烈卖出", "清仓",
+        "卖出", "强烈卖出", "清仓",
         # English
-        "strong sell", "sell", "reduce",
+        "strong sell", "sell",
+    )
+    _REDUCE_KEYWORDS = (
+        # Vietnamese
+        "giảm vị thế",
+        # Chinese
+        "减仓",
+        # English
+        "reduce",
     )
     _HOLD_KEYWORDS = (
         # Vietnamese
@@ -97,7 +105,7 @@ class BacktestEngine:
     def infer_direction_expected(cls, operation_advice: Optional[str]) -> str:
         """Infer expected direction: up/down/not_down/flat."""
         text = cls._normalize_text(operation_advice)
-        if cls._matches_intent(text, cls._BEARISH_KEYWORDS):
+        if cls._matches_intent(text, cls._BEARISH_KEYWORDS) or cls._matches_intent(text, cls._REDUCE_KEYWORDS):
             return "down"
         if cls._matches_intent(text, cls._WAIT_KEYWORDS):
             return "flat"
@@ -109,13 +117,19 @@ class BacktestEngine:
 
     @classmethod
     def infer_position_recommendation(cls, operation_advice: Optional[str]) -> str:
-        """Infer recommended position: long/cash (long-only system).
+        """Infer recommended position: long/cash/partial_exit (long-only system).
 
-        Priority: bearish/wait -> cash, bullish/hold -> long, unrecognized -> cash.
+        Priority: bearish/wait -> cash, reduce -> partial_exit,
+                  bullish/hold -> long, unrecognized -> cash.
+
+        Note: compound advice like '减仓/卖出' maps to cash because bearish
+        keywords (卖出) take priority over reduce keywords (减仓).
         """
         text = cls._normalize_text(operation_advice)
         if cls._matches_intent(text, cls._BEARISH_KEYWORDS) or cls._matches_intent(text, cls._WAIT_KEYWORDS):
             return "cash"
+        if cls._matches_intent(text, cls._REDUCE_KEYWORDS):
+            return "partial_exit"
         if cls._matches_intent(text, cls._BULLISH_KEYWORDS) or cls._matches_intent(text, cls._HOLD_KEYWORDS):
             return "long"
         return "cash"
@@ -131,8 +145,18 @@ class BacktestEngine:
         stop_loss: Optional[float],
         take_profit: Optional[float],
         config: EvaluationConfig,
+        benchmark_return_pct: Optional[float] = None,
+        market_phase: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Evaluate one historical analysis against forward daily bars.
+
+        Args:
+            benchmark_return_pct: Return of the market index (e.g. VNINDEX) over
+                the same eval_window. When provided, alpha_pct is computed as
+                stock_return_pct - benchmark_return_pct.
+            market_phase: Market regime at analysis time — "BULL", "BEAR",
+                "NEUTRAL", or "SECTOR_HOT". Used for phase-level breakdown in
+                compute_summary. None when not available.
 
         Notes:
         - Daily bars cannot determine intraday ordering. If stop-loss and
@@ -147,6 +171,9 @@ class BacktestEngine:
                 "position_recommendation": cls.infer_position_recommendation(operation_advice),
                 "direction_expected": cls.infer_direction_expected(operation_advice),
                 "eval_status": "error",
+                "benchmark_return_pct": benchmark_return_pct,
+                "alpha_pct": None,
+                "market_phase": market_phase,
             }
 
         eval_days = int(config.eval_window_days)
@@ -161,6 +188,9 @@ class BacktestEngine:
                 "direction_expected": cls.infer_direction_expected(operation_advice),
                 "eval_status": "insufficient_data",
                 "eval_window_days": eval_days,
+                "benchmark_return_pct": benchmark_return_pct,
+                "alpha_pct": None,
+                "market_phase": market_phase,
             }
 
         window_bars = list(forward_bars[:eval_days])
@@ -201,14 +231,25 @@ class BacktestEngine:
             end_close=end_close,
         )
 
-        simulated_entry_price = start_price if position == "long" else None
+        simulated_entry_price = start_price if position in ("long", "partial_exit") else None
         simulated_return_pct: Optional[float]
-        if position != "long":
-            simulated_return_pct = 0.0
-        elif simulated_exit_price is None:
-            simulated_return_pct = None
+        if position == "long":
+            if simulated_exit_price is None:
+                simulated_return_pct = None
+            else:
+                simulated_return_pct = (simulated_exit_price - start_price) / start_price * 100
+        elif position == "partial_exit":
+            if simulated_exit_price is None:
+                simulated_return_pct = None
+            else:
+                full_return = (simulated_exit_price - start_price) / start_price * 100
+                simulated_return_pct = round(full_return * 0.5, 4)
         else:
-            simulated_return_pct = (simulated_exit_price - start_price) / start_price * 100
+            simulated_return_pct = 0.0
+
+        alpha_pct: Optional[float] = None
+        if benchmark_return_pct is not None and stock_return_pct is not None:
+            alpha_pct = round(stock_return_pct - benchmark_return_pct, 4)
 
         return {
             "analysis_date": analysis_date,
@@ -236,6 +277,9 @@ class BacktestEngine:
             "simulated_exit_price": simulated_exit_price,
             "simulated_exit_reason": simulated_exit_reason,
             "simulated_return_pct": simulated_return_pct,
+            "benchmark_return_pct": benchmark_return_pct,
+            "alpha_pct": alpha_pct,
+            "market_phase": market_phase,
         }
 
     @classmethod
@@ -257,6 +301,7 @@ class BacktestEngine:
 
         long_count = sum(1 for r in completed if (r.position_recommendation or "") == "long")
         cash_count = sum(1 for r in completed if (r.position_recommendation or "") == "cash")
+        partial_exit_count = sum(1 for r in completed if (r.position_recommendation or "") == "partial_exit")
 
         win_count = sum(1 for r in completed if (r.outcome or "") == "win")
         loss_count = sum(1 for r in completed if (r.outcome or "") == "loss")
@@ -278,7 +323,7 @@ class BacktestEngine:
         stop_applicable = [
             r
             for r in completed
-            if (r.position_recommendation or "") == "long" and r.hit_stop_loss is not None
+            if (r.position_recommendation or "") in ("long", "partial_exit") and r.hit_stop_loss is not None
         ]
         stop_loss_trigger_rate = (
             round(sum(1 for r in stop_applicable if r.hit_stop_loss is True) / len(stop_applicable) * 100, 2)
@@ -289,7 +334,7 @@ class BacktestEngine:
         take_profit_applicable = [
             r
             for r in completed
-            if (r.position_recommendation or "") == "long" and r.hit_take_profit is not None
+            if (r.position_recommendation or "") in ("long", "partial_exit") and r.hit_take_profit is not None
         ]
         take_profit_trigger_rate = (
             round(
@@ -303,7 +348,7 @@ class BacktestEngine:
         any_target_applicable = [
             r
             for r in completed
-            if (r.position_recommendation or "") == "long"
+            if (r.position_recommendation or "") in ("long", "partial_exit")
             and (r.hit_stop_loss is not None or r.hit_take_profit is not None)
         ]
         ambiguous_rate = (
@@ -324,8 +369,15 @@ class BacktestEngine:
             ]
         )
 
+        # avg_alpha_pct: only from rows that carry the alpha_pct attribute
+        # (uses getattr for backward compat with older FakeRow/protocol objects).
+        avg_alpha_pct = cls._average(
+            [getattr(r, "alpha_pct", None) for r in completed]
+        )
+
         advice_breakdown = cls._compute_advice_breakdown(completed)
         diagnostics = cls._compute_diagnostics(results_list)
+        market_phase_breakdown = cls._compute_phase_breakdown(completed)
 
         return {
             "scope": scope,
@@ -337,6 +389,7 @@ class BacktestEngine:
             "insufficient_count": insufficient_count,
             "long_count": long_count,
             "cash_count": cash_count,
+            "partial_exit_count": partial_exit_count,
             "win_count": win_count,
             "loss_count": loss_count,
             "neutral_count": neutral_count,
@@ -345,12 +398,14 @@ class BacktestEngine:
             "neutral_rate_pct": neutral_rate_pct,
             "avg_stock_return_pct": avg_stock_return_pct,
             "avg_simulated_return_pct": avg_simulated_return_pct,
+            "avg_alpha_pct": avg_alpha_pct,
             "stop_loss_trigger_rate": stop_loss_trigger_rate,
             "take_profit_trigger_rate": take_profit_trigger_rate,
             "ambiguous_rate": ambiguous_rate,
             "avg_days_to_first_hit": avg_days_to_first_hit,
             "advice_breakdown": advice_breakdown,
             "diagnostics": diagnostics,
+            "market_phase_breakdown": market_phase_breakdown,
         }
 
     @staticmethod
@@ -442,7 +497,7 @@ class BacktestEngine:
         Optional[float],
         str,
     ]:
-        if position != "long":
+        if position not in ("long", "partial_exit"):
             return (
                 None,
                 None,
@@ -558,3 +613,28 @@ class BacktestEngine:
             "eval_status": status_counts,
             "first_hit": first_hit_counts,
         }
+
+    @staticmethod
+    def _compute_phase_breakdown(results: List[BacktestResultLike]) -> Dict[str, Any]:
+        """Aggregate win/loss/neutral counts per market_phase for completed rows.
+
+        Uses getattr for backward compatibility with objects that lack the
+        market_phase attribute (e.g. legacy FakeRow without the field).
+        """
+        breakdown: Dict[str, Dict[str, int]] = {}
+        for row in results:
+            phase = str(getattr(row, "market_phase", None) or "").strip() or "(unknown)"
+            bucket = breakdown.setdefault(phase, {"total": 0, "win": 0, "loss": 0, "neutral": 0})
+            bucket["total"] += 1
+            outcome = (row.outcome or "").strip()
+            if outcome in ("win", "loss", "neutral"):
+                bucket[outcome] += 1
+
+        enriched: Dict[str, Any] = {}
+        for phase, bucket in breakdown.items():
+            win = bucket["win"]
+            loss = bucket["loss"]
+            denom = win + loss
+            win_rate = round(win / denom * 100, 2) if denom else None
+            enriched[phase] = {**bucket, "win_rate_pct": win_rate}
+        return enriched

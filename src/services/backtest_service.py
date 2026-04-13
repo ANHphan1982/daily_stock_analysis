@@ -71,6 +71,10 @@ class BacktestService:
 
         results_to_save: List[BacktestResult] = []
 
+        # Cache VNINDEX benchmark returns keyed by (analysis_date, eval_window_days)
+        # to avoid redundant DB lookups across multiple analyses on the same date.
+        _benchmark_cache: Dict[str, Optional[float]] = {}
+
         for analysis in candidates:
             processed += 1
             touched_codes.add(analysis.code)
@@ -127,6 +131,20 @@ class BacktestService:
                         eval_window_days=int(eval_window_days),
                     )
 
+                # Fetch VNINDEX benchmark return for the same window (cached per date).
+                benchmark_cache_key = f"{start_daily.date}_{eval_window_days}"
+                if benchmark_cache_key not in _benchmark_cache:
+                    _benchmark_cache[benchmark_cache_key] = self._get_benchmark_return(
+                        analysis_date=start_daily.date,
+                        eval_window_days=int(eval_window_days),
+                    )
+                benchmark_return_pct = _benchmark_cache[benchmark_cache_key]
+
+                market_phase = self._get_market_phase(
+                    analysis_date=start_daily.date,
+                    benchmark_return_pct=benchmark_return_pct,
+                )
+
                 evaluation = BacktestEngine.evaluate_single(
                     operation_advice=analysis.operation_advice,
                     analysis_date=start_daily.date,
@@ -135,6 +153,8 @@ class BacktestService:
                     stop_loss=analysis.stop_loss,
                     take_profit=analysis.take_profit,
                     config=eval_config,
+                    benchmark_return_pct=benchmark_return_pct,
+                    market_phase=market_phase,
                 )
 
                 status = evaluation.get("eval_status")
@@ -175,6 +195,9 @@ class BacktestService:
                         simulated_exit_price=evaluation.get("simulated_exit_price"),
                         simulated_exit_reason=evaluation.get("simulated_exit_reason"),
                         simulated_return_pct=evaluation.get("simulated_return_pct"),
+                        benchmark_return_pct=evaluation.get("benchmark_return_pct"),
+                        alpha_pct=evaluation.get("alpha_pct"),
+                        market_phase=evaluation.get("market_phase"),
                     )
                 )
 
@@ -293,9 +316,74 @@ class BacktestService:
         except Exception as exc:
             logger.warning(f"补全日线数据失败({code}): {exc}")
 
+    def _get_benchmark_return(self, *, analysis_date: date, eval_window_days: int) -> Optional[float]:
+        """Fetch VNINDEX return over eval_window starting from analysis_date.
+
+        Returns None when VNINDEX data is unavailable so callers can still
+        proceed without a benchmark comparison.
+        """
+        vnindex_code = "VN:VNINDEX"
+        try:
+            vn_start = self.stock_repo.get_start_daily(code=vnindex_code, analysis_date=analysis_date)
+            if vn_start is None or vn_start.close is None:
+                return None
+            vn_fwd = self.stock_repo.get_forward_bars(
+                code=vnindex_code,
+                analysis_date=vn_start.date,
+                eval_window_days=eval_window_days,
+            )
+            if len(vn_fwd) < eval_window_days:
+                return None
+            return round((vn_fwd[-1].close - vn_start.close) / vn_start.close * 100, 4)
+        except Exception as exc:
+            logger.debug(f"VNINDEX benchmark fetch failed for {analysis_date}: {exc}")
+            return None
+
+    def _get_market_phase(
+        self,
+        *,
+        analysis_date: date,
+        benchmark_return_pct: Optional[float],
+    ) -> Optional[str]:
+        """Classify market regime from VNINDEX 1-day return on analysis_date.
+
+        Uses the single-day change of VNINDEX (not the eval_window return) to
+        reflect the market condition at the moment the analysis was made.
+
+        Thresholds (aligned with recommendation_service.py):
+          >= +0.5%  → BULL
+          <= -0.5%  → BEAR
+          otherwise → NEUTRAL
+
+        Returns None when VNINDEX data is unavailable.
+        """
+        vnindex_code = "VN:VNINDEX"
+        try:
+            bar = self.stock_repo.get_start_daily(code=vnindex_code, analysis_date=analysis_date)
+            if bar is None or bar.close is None:
+                return None
+            # Fetch the previous trading day close to compute 1-day change
+            prev_bars = self.stock_repo.get_forward_bars(
+                code=vnindex_code,
+                analysis_date=analysis_date - timedelta(days=7),  # look back up to 7 days
+                eval_window_days=1,
+            )
+            if not prev_bars or prev_bars[-1].close is None:
+                return None
+            change_pct = (bar.close - prev_bars[-1].close) / prev_bars[-1].close * 100
+            if change_pct >= 0.5:
+                return "BULL"
+            if change_pct <= -0.5:
+                return "BEAR"
+            return "NEUTRAL"
+        except Exception as exc:
+            logger.debug(f"Market phase detection failed for {analysis_date}: {exc}")
+            return None
+
     def _recompute_summaries(self, *, touched_codes: List[str], eval_window_days: int, engine_version: str) -> None:
+        # Load ALL rows and compute summaries INSIDE the session to prevent
+        # ORM objects from expiring before their attributes are accessed.
         with self.db.get_session() as session:
-            # overall
             overall_rows = session.execute(
                 select(BacktestResult).where(
                     and_(
@@ -304,6 +392,8 @@ class BacktestService:
                     )
                 )
             ).scalars().all()
+
+            # Compute overall summary while session is still open.
             overall_data = BacktestEngine.compute_summary(
                 results=overall_rows,
                 scope="overall",
@@ -311,9 +401,9 @@ class BacktestService:
                 eval_window_days=eval_window_days,
                 engine_version=engine_version,
             )
-            overall_summary = self._build_summary_model(overall_data)
-            self.repo.upsert_summary(overall_summary)
 
+            # Collect per-stock summaries inside the same session.
+            stock_summaries: List[Any] = []
             for code in touched_codes:
                 rows = session.execute(
                     select(BacktestResult).where(
@@ -331,8 +421,13 @@ class BacktestService:
                     eval_window_days=eval_window_days,
                     engine_version=engine_version,
                 )
-                summary = self._build_summary_model(data)
-                self.repo.upsert_summary(summary)
+                stock_summaries.append(data)
+
+        # Build ORM models and upsert AFTER the session is closed — all data
+        # is already captured in plain dicts so there's no lazy-load risk.
+        self.repo.upsert_summary(self._build_summary_model(overall_data))
+        for data in stock_summaries:
+            self.repo.upsert_summary(self._build_summary_model(data))
 
     @staticmethod
     def _build_summary_model(summary_data: Dict[str, Any]) -> BacktestSummary:
@@ -347,6 +442,7 @@ class BacktestService:
             insufficient_count=summary_data.get("insufficient_count") or 0,
             long_count=summary_data.get("long_count") or 0,
             cash_count=summary_data.get("cash_count") or 0,
+            partial_exit_count=summary_data.get("partial_exit_count") or 0,
             win_count=summary_data.get("win_count") or 0,
             loss_count=summary_data.get("loss_count") or 0,
             neutral_count=summary_data.get("neutral_count") or 0,
@@ -355,12 +451,14 @@ class BacktestService:
             neutral_rate_pct=summary_data.get("neutral_rate_pct"),
             avg_stock_return_pct=summary_data.get("avg_stock_return_pct"),
             avg_simulated_return_pct=summary_data.get("avg_simulated_return_pct"),
+            avg_alpha_pct=summary_data.get("avg_alpha_pct"),
             stop_loss_trigger_rate=summary_data.get("stop_loss_trigger_rate"),
             take_profit_trigger_rate=summary_data.get("take_profit_trigger_rate"),
             ambiguous_rate=summary_data.get("ambiguous_rate"),
             avg_days_to_first_hit=summary_data.get("avg_days_to_first_hit"),
             advice_breakdown_json=json.dumps(summary_data.get("advice_breakdown") or {}, ensure_ascii=False),
             diagnostics_json=json.dumps(summary_data.get("diagnostics") or {}, ensure_ascii=False),
+            market_phase_breakdown_json=json.dumps(summary_data.get("market_phase_breakdown") or {}, ensure_ascii=False),
         )
 
     @staticmethod
@@ -394,6 +492,9 @@ class BacktestService:
             "simulated_exit_price": row.simulated_exit_price,
             "simulated_exit_reason": row.simulated_exit_reason,
             "simulated_return_pct": row.simulated_return_pct,
+            "benchmark_return_pct": row.benchmark_return_pct,
+            "alpha_pct": row.alpha_pct,
+            "market_phase": row.market_phase,
         }
 
     @staticmethod
@@ -409,6 +510,7 @@ class BacktestService:
             "insufficient_count": row.insufficient_count,
             "long_count": row.long_count,
             "cash_count": row.cash_count,
+            "partial_exit_count": row.partial_exit_count,
             "win_count": row.win_count,
             "loss_count": row.loss_count,
             "neutral_count": row.neutral_count,
@@ -417,12 +519,14 @@ class BacktestService:
             "neutral_rate_pct": row.neutral_rate_pct,
             "avg_stock_return_pct": row.avg_stock_return_pct,
             "avg_simulated_return_pct": row.avg_simulated_return_pct,
+            "avg_alpha_pct": row.avg_alpha_pct,
             "stop_loss_trigger_rate": row.stop_loss_trigger_rate,
             "take_profit_trigger_rate": row.take_profit_trigger_rate,
             "ambiguous_rate": row.ambiguous_rate,
             "avg_days_to_first_hit": row.avg_days_to_first_hit,
             "advice_breakdown": json.loads(row.advice_breakdown_json) if row.advice_breakdown_json else {},
             "diagnostics": json.loads(row.diagnostics_json) if row.diagnostics_json else {},
+            "market_phase_breakdown": json.loads(row.market_phase_breakdown_json) if row.market_phase_breakdown_json else {},
         }
 
     @staticmethod

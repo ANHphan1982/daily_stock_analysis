@@ -12,6 +12,7 @@
 """
 
 import logging
+import time
 from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
@@ -401,6 +402,11 @@ _PERIOD_TO_DAYS: dict[str, int] = {
     "1825d": 1825,  # 1M candles: ~5 years of daily data
 }
 
+# In-memory OHLCV cache: key=(stock_code, period), value=(timestamp, OHLCVResponse)
+# TTL = 1 giờ (tránh gọi API liên tục và chịu lỗi rate-limit)
+_OHLCV_CACHE: dict = {}
+_OHLCV_CACHE_TTL = 3600  # seconds
+
 
 @router.get(
     "/{stock_code}/ohlcv",
@@ -433,41 +439,96 @@ def get_stock_ohlcv(
         )
 
     days = _PERIOD_TO_DAYS[period]
+    cache_key = (stock_code.upper(), period)
+
+    # Trả về cache nếu còn hiệu lực
+    cached = _OHLCV_CACHE.get(cache_key)
+    if cached:
+        cached_at, cached_response = cached
+        if time.time() - cached_at < _OHLCV_CACHE_TTL:
+            logger.debug("OHLCV cache hit: %s %s", stock_code, period)
+            return cached_response
 
     try:
-        service = StockService()
-        result = service.get_history_data(stock_code=stock_code, period="daily", days=days)
+        from data_provider.base import DataFetcherManager, DataFetchError
+
+        mgr = DataFetcherManager()
+        df, source = mgr.get_daily_data(stock_code=stock_code, days=days)
+
+        if df is None or df.empty:
+            return OHLCVResponse(
+                stock_code=stock_code,
+                stock_name=None,
+                period=period,
+                data=[],
+            )
+
+        stock_name = None
+        try:
+            # For VN stocks, look up directly from the pre-loaded index to avoid
+            # going through CN data sources (Pytdx/Baostock/Tushare) which can't
+            # resolve VN codes and generate noisy warnings.
+            if stock_code.upper().startswith("VN:"):
+                from data_provider.base import _VN_STOCK_NAMES
+                stock_name = _VN_STOCK_NAMES.get(stock_code.upper()) or ""
+            else:
+                stock_name = mgr.get_stock_name(stock_code, allow_realtime=False)
+        except Exception:
+            pass
 
         data = [
             KLineData(
-                date=item["date"],
-                open=item["open"],
-                high=item["high"],
-                low=item["low"],
-                close=item["close"],
-                volume=item.get("volume"),
-                amount=item.get("amount"),
-                change_percent=item.get("change_percent"),
+                # Chuẩn hóa date về YYYY-MM-DD (bỏ phần giờ nếu có)
+                date=str(row.get("date", ""))[:10],
+                open=float(row.get("open") or 0),
+                high=float(row.get("high") or 0),
+                low=float(row.get("low") or 0),
+                close=float(row.get("close") or 0),
+                volume=float(row.get("volume")) if row.get("volume") else None,
+                amount=float(row.get("amount")) if row.get("amount") else None,
+                change_percent=float(row.get("pct_chg")) if row.get("pct_chg") else None,
             )
-            for item in result.get("data", [])
+            for _, row in df.iterrows()
         ]
 
-        return OHLCVResponse(
+        response = OHLCVResponse(
             stock_code=stock_code,
-            stock_name=result.get("stock_name"),
+            stock_name=stock_name,
             period=period,
             data=data,
         )
 
+        # Lưu cache chỉ khi có dữ liệu thực
+        if data:
+            _OHLCV_CACHE[cache_key] = (time.time(), response)
+            logger.debug("OHLCV cached: %s %s (%d bars)", stock_code, period, len(data))
+
+        return response
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Lấy OHLCV {stock_code} thất bại: {e}", exc_info=True)
+        err_str = str(e)
+        # Phân biệt lỗi rate-limit / tạm thời vs lỗi nội bộ
+        is_rate_limit = "429" in err_str or "Too Many Requests" in err_str
+        is_network    = "ConnectionError" in err_str or "timeout" in err_str.lower()
+
+        if is_rate_limit or is_network:
+            logger.warning("OHLCV %s tạm thời không khả dụng (%s): %s", stock_code, period, err_str[:100])
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": "data_temporarily_unavailable",
+                    "message": "Nguồn dữ liệu tạm thời không khả dụng. Vui lòng thử lại sau vài phút.",
+                },
+            )
+
+        logger.error("Lấy OHLCV %s thất bại: %s", stock_code, err_str, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={
                 "error": "internal_error",
-                "message": f"Lấy dữ liệu OHLCV thất bại: {str(e)}",
+                "message": f"Lấy dữ liệu OHLCV thất bại: {err_str}",
             },
         )
 

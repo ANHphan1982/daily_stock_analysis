@@ -14,10 +14,13 @@ import { useDashboardLifecycle, useHomeDashboardState } from '../hooks';
 import { useOHLCVStore } from '../stores/ohlcvStore';
 import { getReportText, normalizeReportLanguage } from '../utils/reportLanguage';
 
+type MainTab = 'report' | 'recommendations';
+
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [mainTab, setMainTab] = useState<MainTab>('recommendations');
 
   const {
     query,
@@ -72,7 +75,7 @@ const HomePage: React.FC = () => {
   });
 
   // OHLCV chart state
-  const { data: ohlcvData, isLoading: isOhlcvLoading, period: ohlcvPeriod, fetchData: fetchOHLCV, setPeriod: setOhlcvPeriod, reset: resetOHLCV } = useOHLCVStore();
+  const { data: ohlcvData, isLoading: isOhlcvLoading, error: ohlcvError, period: ohlcvPeriod, fetchData: fetchOHLCV, setPeriod: setOhlcvPeriod, reset: resetOHLCV } = useOHLCVStore();
 
   // Fetch OHLCV whenever the selected stock code changes
   const selectedStockCode = selectedReport?.meta.stockCode ?? null;
@@ -87,6 +90,7 @@ const HomePage: React.FC = () => {
   const handleHistoryItemClick = useCallback((recordId: number) => {
     void selectHistoryItem(recordId);
     setSidebarOpen(false);
+    setMainTab('report');
   }, [selectHistoryItem]);
 
   const handleSubmitAnalysis = useCallback(
@@ -101,6 +105,7 @@ const HomePage: React.FC = () => {
         originalQuery: query,
         selectionSource: selectionSource ?? 'manual',
       });
+      setMainTab('report');
     },
     [query, submitAnalysis],
   );
@@ -240,77 +245,130 @@ const HomePage: React.FC = () => {
             </div>
           ) : null}
 
-          <section className="flex-1 min-w-0 min-h-0 overflow-x-auto overflow-y-auto px-3 pb-4 md:px-6">
-            {error ? (
-              <ApiErrorAlert
-                error={error}
-                className="mb-3"
-                onDismiss={clearError}
-              />
-            ) : null}
-            {isLoadingReport ? (
-              <div className="flex h-full flex-col items-center justify-center">
-                <DashboardStateBlock title="Đang tải báo cáo..." loading />
-              </div>
-            ) : selectedReport ? (
-              <div className="max-w-4xl pb-8">
-                <div className="mb-3 flex items-center justify-end gap-2 flex-wrap">
-                  <Button
-                    variant="home-action-ai"
-                    size="sm"
-                    disabled={selectedReport.meta.id === undefined}
-                    onClick={handleAskFollowUp}
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    Hỏi thêm AI
-                  </Button>
-                  <Button
-                    variant="home-action-report"
-                    size="sm"
-                    disabled={selectedReport.meta.id === undefined}
-                    onClick={openMarkdownDrawer}
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    {reportText.fullReport}
-                  </Button>
-                </div>
-                <div className="mb-3 dashboard-card p-3 h-[200px] md:h-[300px]">
-                  <CandlestickChart
-                    data={ohlcvData ?? []}
-                    isLoading={isOhlcvLoading}
-                    period={ohlcvPeriod}
-                    stockName={selectedReport.meta.stockName ?? undefined}
-                    onPeriodChange={setOhlcvPeriod}
+          <section className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+            {/* ── Tab bar ── */}
+            <div className="flex shrink-0 border-b border-[var(--border-dim)] px-3 md:px-6">
+              <button
+                type="button"
+                onClick={() => setMainTab('recommendations')}
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${
+                  mainTab === 'recommendations'
+                    ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
+                    : 'border-transparent text-muted-text hover:text-foreground'
+                }`}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Khuyến nghị hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={() => setMainTab('report')}
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${
+                  mainTab === 'report'
+                    ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]'
+                    : 'border-transparent text-muted-text hover:text-foreground'
+                }`}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Phân tích cổ phiếu
+                {selectedReport && (
+                  <span className="ml-1 rounded-full bg-[hsl(var(--primary)/0.15)] px-1.5 py-0.5 text-[10px] text-[hsl(var(--primary))]">
+                    {selectedReport.meta.stockCode.replace('VN:', '')}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* ── Tab content ── */}
+            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-3 pb-4 md:px-6">
+              {error ? (
+                <ApiErrorAlert error={error} className="mb-3 mt-3" onDismiss={clearError} />
+              ) : null}
+
+              {/* Tab: Khuyến nghị */}
+              {mainTab === 'recommendations' && (
+                <div className="max-w-4xl pt-3 pb-8">
+                  <RecommendationsPanel
+                    onAnalyzeStock={(stockCode) => {
+                      const code = stockCode.replace(/^VN:/i, '');
+                      setQuery(code);
+                      handleSubmitAnalysis(stockCode);
+                    }}
                   />
                 </div>
-                <ReportSummary data={selectedReport} isHistory />
-                <StockNewsPanel
-                  stockCode={selectedReport.meta.stockCode}
-                  stockName={selectedReport.meta.stockName ?? undefined}
-                />
-              </div>
-            ) : (
-              <div className="max-w-4xl pb-8">
-                <RecommendationsPanel
-                  onAnalyzeStock={(stockCode) => {
-                    // Mã từ backend có thể có prefix "VN:", strip ra để điền vào input
-                    const code = stockCode.replace(/^VN:/i, '');
-                    setQuery(code);
-                    handleSubmitAnalysis(stockCode);
-                  }}
-                  className="mb-3"
-                />
-                <DashboardStateBlock
-                  title="Hoặc nhập mã để phân tích riêng"
-                  description="Nhập mã cổ phiếu ở thanh tìm kiếm phía trên, hoặc chọn báo cáo lịch sử bên trái"
-                  titleClassName="text-sm font-medium text-secondary-text"
-                />
-              </div>
-            )}
+              )}
+
+              {/* Tab: Phân tích cổ phiếu */}
+              {mainTab === 'report' && (
+                <>
+                  {isLoadingReport ? (
+                    <div className="flex h-full flex-col items-center justify-center">
+                      <DashboardStateBlock title="Đang tải báo cáo..." loading />
+                    </div>
+                  ) : selectedReport ? (
+                    <div className="max-w-4xl pt-3 pb-8">
+                      <div className="mb-3 flex items-center justify-end gap-2 flex-wrap">
+                        <Button
+                          variant="home-action-ai"
+                          size="sm"
+                          disabled={selectedReport.meta.id === undefined}
+                          onClick={handleAskFollowUp}
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          Hỏi thêm AI
+                        </Button>
+                        <Button
+                          variant="home-action-report"
+                          size="sm"
+                          disabled={selectedReport.meta.id === undefined}
+                          onClick={openMarkdownDrawer}
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          {reportText.fullReport}
+                        </Button>
+                      </div>
+                      <div className="mb-3 dashboard-card p-3 h-[200px] md:h-[300px]">
+                        <CandlestickChart
+                          data={ohlcvData ?? []}
+                          isLoading={isOhlcvLoading}
+                          error={ohlcvError}
+                          period={ohlcvPeriod}
+                          stockName={selectedReport.meta.stockName ?? undefined}
+                          onPeriodChange={setOhlcvPeriod}
+                          onRetry={() => selectedStockCode && fetchOHLCV(selectedStockCode, ohlcvPeriod)}
+                        />
+                      </div>
+                      <ReportSummary data={selectedReport} isHistory />
+                      <StockNewsPanel
+                        stockCode={selectedReport.meta.stockCode}
+                        stockName={selectedReport.meta.stockName ?? undefined}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <DashboardStateBlock
+                        title="Chưa có báo cáo"
+                        description="Nhập mã cổ phiếu ở thanh tìm kiếm phía trên, hoặc chọn báo cáo lịch sử bên trái"
+                        titleClassName="text-base font-medium text-foreground"
+                        icon={(
+                          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </section>
         </div>
       </div>

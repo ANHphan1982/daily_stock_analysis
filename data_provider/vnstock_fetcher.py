@@ -42,12 +42,23 @@ def _strip_vn_prefix(stock_code: str) -> str:
     return code
 
 
+# Cache components theo (symbol, source) — tránh gọi API khởi tạo nhiều lần
+# Key: (symbol, source) → StockComponents object
+_COMPONENTS_CACHE: Dict[tuple, Any] = {}
+
+
 def _get_stock_components(symbol: str, source: str):
     """
-    Khoi tao StockComponents tu vnstock 3.x.
+    Khoi tao StockComponents tu vnstock 3.x, co cache trong session.
 
     API chinh xac: Vnstock(symbol, source).stock(symbol, source)
+    Cache noi bo de tranh goi API khoi tao nhieu lan cho cung mot ma,
+    giam nguy co bi rate-limit khi quet nhieu ma lien tiep.
     """
+    cache_key = (symbol.upper(), source.upper())
+    if cache_key in _COMPONENTS_CACHE:
+        return _COMPONENTS_CACHE[cache_key]
+
     try:
         from vnstock import Vnstock  # type: ignore
     except ImportError as exc:
@@ -56,9 +67,11 @@ def _get_stock_components(symbol: str, source: str):
             "Chay: pip install vnstock>=3.0.0"
         ) from exc
     try:
-        return Vnstock(symbol=symbol, source=source).stock(
+        components = Vnstock(symbol=symbol, source=source).stock(
             symbol=symbol, source=source
         )
+        _COMPONENTS_CACHE[cache_key] = components
+        return components
     except Exception as exc:
         raise DataFetchError(
             f"vnstock khoi tao {symbol} (source={source}) that bai: {exc}"

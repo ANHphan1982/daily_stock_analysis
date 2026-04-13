@@ -11,7 +11,9 @@ interface CandlestickChartProps {
   period?: Period;
   isLoading?: boolean;
   stockName?: string;
+  error?: { status?: number; message?: string } | null;
   onPeriodChange?: (period: Period) => void;
+  onRetry?: () => void;
 }
 
 interface ChartRow {
@@ -125,6 +127,60 @@ function ChartSkeleton() {
 }
 
 // ------------------------------------------------------------------
+// Error state
+// ------------------------------------------------------------------
+
+function ChartError({
+  message,
+  status,
+  onRetry,
+}: {
+  message?: string;
+  status?: number;
+  onRetry?: () => void;
+}) {
+  const isRateLimit = status === 503 || !message || message.includes('tạm thời') || message.includes('503') || message.includes('429');
+  return (
+    <div
+      data-testid="chart-error"
+      className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center overflow-hidden"
+    >
+      <svg
+        className="h-8 w-8 text-amber-500/60"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+        />
+      </svg>
+      <p className="text-sm font-medium text-muted-foreground">
+        {isRateLimit ? 'Nguồn dữ liệu tạm thời không khả dụng' : 'Không tải được dữ liệu nến'}
+      </p>
+      <p className="text-xs text-muted-foreground/60">
+        {isRateLimit
+          ? 'API đang bị giới hạn tốc độ. Vui lòng thử lại sau vài phút.'
+          : (message ?? 'Lỗi không xác định')}
+      </p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-1 px-3 py-1 rounded text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+        >
+          Thử lại
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------
 // Empty state
 // ------------------------------------------------------------------
 
@@ -134,7 +190,6 @@ function ChartEmpty({ stockName }: { stockName?: string }) {
       data-testid="chart-empty"
       className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center overflow-hidden"
     >
-      {/* Icon */}
       <svg
         className="h-8 w-8 text-muted-foreground/40"
         fill="none"
@@ -149,31 +204,17 @@ function ChartEmpty({ stockName }: { stockName?: string }) {
           d="M3 3l18 18M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M13 5h2l4 4v4"
         />
       </svg>
-
-      {/* Title */}
       <p
         data-testid="chart-empty-title"
         className="text-sm font-medium text-muted-foreground"
       >
-        {stockName
-          ? `Không có dữ liệu nến cho ${stockName}`
-          : 'Không có dữ liệu nến'}
+        {stockName ? `Chưa có dữ liệu nến cho ${stockName}` : 'Chưa có dữ liệu nến'}
       </p>
-
-      {/* Hint */}
       <p
         data-testid="chart-empty-hint"
         className="text-xs text-muted-foreground/60"
       >
-        Cổ phiếu này chưa được hỗ trợ bởi nguồn dữ liệu hiện tại
-      </p>
-
-      {/* Action */}
-      <p
-        data-testid="chart-empty-action"
-        className="text-xs text-muted-foreground/50"
-      >
-        Thử chọn cổ phiếu khác từ lịch sử phân tích
+        Mã này chưa có lịch sử giao dịch trong khoảng thời gian đã chọn.
       </p>
     </div>
   );
@@ -188,7 +229,9 @@ export function CandlestickChart({
   period = '1d',
   isLoading = false,
   stockName,
+  error,
   onPeriodChange,
+  onRetry,
 }: CandlestickChartProps) {
   const chartRows = useMemo<ChartRow[]>(
     () =>
@@ -248,6 +291,8 @@ export function CandlestickChart({
       <div className="flex-1 min-h-0">
         {isLoading ? (
           <ChartSkeleton />
+        ) : error ? (
+          <ChartError message={error.message} status={error.status} onRetry={onRetry} />
         ) : data.length === 0 ? (
           <ChartEmpty stockName={stockName} />
         ) : (
@@ -257,7 +302,7 @@ export function CandlestickChart({
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 10 }}
-                tickFormatter={(v: string) => v.slice(5)} // MM-DD
+                tickFormatter={(v: string) => v.slice(5, 10)} // MM-DD from YYYY-MM-DD
               />
               <YAxis
                 domain={['auto', 'auto']}

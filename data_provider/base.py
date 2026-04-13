@@ -22,6 +22,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Callable, Optional, List, Tuple, Dict, Any
 
+import json
+import os
+
 import pandas as pd
 import numpy as np
 from src.data.stock_mapping import STOCK_NAME_MAP, is_meaningful_stock_name
@@ -29,6 +32,37 @@ from .fundamental_adapter import AkshareFundamentalAdapter
 
 # 配置日志
 logger = logging.getLogger(__name__)
+
+
+# === VN stock name cache (loaded from stocks.index.json) ===
+def _load_vn_stock_names() -> dict:
+    """Load Vietnamese stock names from stocks.index.json.
+    Returns {full_code: name}, e.g. {'VN:VCB': 'Ngân hàng TMCP Ngoại thương Việt Nam'}
+    """
+    candidates = [
+        os.path.join(os.path.dirname(__file__), '..', 'apps', 'dsa-web', 'public', 'stocks.index.json'),
+        os.path.join(os.path.dirname(__file__), '..', 'static', 'stocks.index.json'),
+    ]
+    for path in candidates:
+        path = os.path.normpath(path)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding='utf-8') as f:
+                data = json.load(f)
+            result = {}
+            for entry in data:
+                if len(entry) > 6 and str(entry[6]).upper() == 'VN' and entry[2]:
+                    full_code = str(entry[0])  # e.g. 'VN:VCB'
+                    result[full_code.upper()] = str(entry[2])
+            logger.debug(f"[VN名称] 从 {path} 加载了 {len(result)} 只越南股票名称")
+            return result
+        except Exception as exc:
+            logger.warning(f"[VN名称] 加载 {path} 失败: {exc}")
+    return {}
+
+
+_VN_STOCK_NAMES: dict = _load_vn_stock_names()
 
 
 # === 标准化列名定义 ===
@@ -842,8 +876,9 @@ class DataFetcherManager:
         total_fetchers = len(self._fetchers)
         request_start = time.time()
 
-        # 快速路径：越南股票直接路由到 VnstockFetcher
+        # 快速路径：越南股票 — ưu tiên VnstockFetcher, fallback sang YfinanceFetcher (.VN)
         if _is_vn_market(stock_code):
+            # Bước 1: thử VnstockFetcher
             for attempt, fetcher in enumerate(self._fetchers, start=1):
                 if fetcher.name == "VnstockFetcher":
                     try:
@@ -873,6 +908,38 @@ class DataFetcherManager:
                         )
                         errors.append(error_msg)
                     break
+
+            # Bước 2: fallback sang YfinanceFetcher với mã .VN khi VnstockFetcher thất bại
+            if errors:
+                bare_code = stock_code.upper().replace("VN:", "").strip()
+                yf_code = f"{bare_code}.VN"
+                for fetcher in self._fetchers:
+                    if fetcher.name == "YfinanceFetcher":
+                        try:
+                            logger.info(
+                                f"[VN fallback] {stock_code} → YfinanceFetcher ({yf_code})"
+                            )
+                            df = fetcher.get_daily_data(
+                                stock_code=yf_code,
+                                start_date=start_date,
+                                end_date=end_date,
+                                days=days,
+                            )
+                            if df is not None and not df.empty:
+                                elapsed = time.time() - request_start
+                                logger.info(
+                                    f"[VN fallback OK] {stock_code} via YfinanceFetcher: "
+                                    f"rows={len(df)}, elapsed={elapsed:.2f}s"
+                                )
+                                return df, fetcher.name
+                        except Exception as yf_exc:
+                            _, yf_reason = summarize_exception(yf_exc)
+                            errors.append(f"[YfinanceFetcher fallback] {yf_reason}")
+                            logger.warning(
+                                f"[VN fallback thất bại] {yf_code}: {yf_reason}"
+                            )
+                        break
+
             error_summary = f"越南股票 {stock_code} 获取失败:\n" + "\n".join(errors)
             elapsed = time.time() - request_start
             logger.error(f"[数据源终止] {stock_code} 获取失败: elapsed={elapsed:.2f}s\n{error_summary}")
@@ -1082,8 +1149,31 @@ class DataFetcherManager:
                                 logger.info(f"[实时行情] VN {stock_code} 成功获取 (来源: vnstock)")
                                 return quote
                         except Exception as e:
-                            logger.warning(f"[实时行情] VN {stock_code} 获取失败: {e}")
+                            logger.warning(f"[实时行情] VN {stock_code} vnstock 失败: {e}")
                     break
+
+            # Fallback: yfinance với định dạng SYMBOL.VN
+            bare = stock_code.upper().replace("VN:", "").strip()
+            yf_code = f"{bare}.VN"
+            for fetcher in self._fetchers:
+                if fetcher.name != "YfinanceFetcher":
+                    continue
+                if not hasattr(fetcher, "get_realtime_quote"):
+                    break
+                try:
+                    quote = fetcher.get_realtime_quote(yf_code)
+                    if quote is not None:
+                        # Gắn lại tên VN từ index nếu yfinance trả về tên trống/ngắn
+                        if not is_meaningful_stock_name(getattr(quote, 'name', ''), stock_code):
+                            vn_name = _VN_STOCK_NAMES.get(stock_code.upper(), '')
+                            if vn_name:
+                                quote.name = vn_name
+                        logger.info(f"[实时行情] VN {stock_code} 成功获取 (来源: yfinance fallback)")
+                        return quote
+                except Exception as e:
+                    logger.debug(f"[实时行情] VN {stock_code} yfinance fallback 失败: {e}")
+                break
+
             logger.warning(f"[实时行情] VN {stock_code} 无可用数据源")
             return None
 
@@ -1368,6 +1458,16 @@ class DataFetcherManager:
         if is_meaningful_stock_name(static_name, stock_code):
             self._stock_name_cache[stock_code] = static_name
             return static_name
+
+        # 2b. VN股票: 直接从 stocks.index.json 读取，避免走CN数据源
+        if _is_vn_market(stock_code):
+            vn_name = _VN_STOCK_NAMES.get(stock_code.upper())
+            if vn_name:
+                self._stock_name_cache[stock_code] = vn_name
+                logger.debug(f"[股票名称] 从VN索引获取: {stock_code} -> {vn_name}")
+                return vn_name
+            logger.debug(f"[股票名称] VN索引未找到 {stock_code}，跳过CN数据源")
+            return ""
 
         # 3. 依次尝试各个数据源
         for fetcher in self._fetchers:

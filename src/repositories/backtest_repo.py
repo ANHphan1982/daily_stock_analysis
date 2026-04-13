@@ -147,6 +147,7 @@ class BacktestRepository:
                     "insufficient_count",
                     "long_count",
                     "cash_count",
+                    "partial_exit_count",
                     "win_count",
                     "loss_count",
                     "neutral_count",
@@ -155,12 +156,14 @@ class BacktestRepository:
                     "neutral_rate_pct",
                     "avg_stock_return_pct",
                     "avg_simulated_return_pct",
+                    "avg_alpha_pct",
                     "stop_loss_trigger_rate",
                     "take_profit_trigger_rate",
                     "ambiguous_rate",
                     "avg_days_to_first_hit",
                     "advice_breakdown_json",
                     "diagnostics_json",
+                    "market_phase_breakdown_json",
                 ):
                     setattr(existing, attr, getattr(summary, attr))
                 session.commit()

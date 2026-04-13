@@ -281,5 +281,251 @@ class BacktestEngineTestCase(unittest.TestCase):
         self.assertEqual(pos, "cash")
 
 
+class ReduceVsSellTestCase(unittest.TestCase):
+    """Tests phân biệt 减仓 (partial_exit) với 卖出 (full cash exit)."""
+
+    def _bars(self, start, closes, highs=None, lows=None):
+        highs = highs or closes
+        lows = lows or closes
+        return [
+            Bar(date=start + timedelta(days=i + 1), high=highs[i], low=lows[i], close=closes[i])
+            for i in range(len(closes))
+        ]
+
+    # ── infer_position_recommendation ─────────────────────────────────────
+
+    def test_jiancan_maps_to_partial_exit(self):
+        """'减仓' (Chinese: reduce position) phải → partial_exit."""
+        self.assertEqual(BacktestEngine.infer_position_recommendation("减仓"), "partial_exit")
+
+    def test_maichu_maps_to_cash(self):
+        """'卖出' (Chinese: sell/exit) phải → cash."""
+        self.assertEqual(BacktestEngine.infer_position_recommendation("卖出"), "cash")
+
+    def test_jiancan_slash_maichu_maps_to_cash(self):
+        """'减仓/卖出' (compound) phải → cash (thành phần 卖出 thắng)."""
+        self.assertEqual(BacktestEngine.infer_position_recommendation("减仓/卖出"), "cash")
+
+    def test_giam_vi_the_maps_to_partial_exit(self):
+        """'giảm vị thế' (Vietnamese: reduce position) phải → partial_exit."""
+        self.assertEqual(BacktestEngine.infer_position_recommendation("giảm vị thế"), "partial_exit")
+
+    def test_reduce_english_maps_to_partial_exit(self):
+        """'reduce' (English) phải → partial_exit."""
+        self.assertEqual(BacktestEngine.infer_position_recommendation("reduce position"), "partial_exit")
+
+    def test_sell_english_maps_to_cash(self):
+        """'sell' (English, không có 'reduce') phải vẫn → cash."""
+        self.assertEqual(BacktestEngine.infer_position_recommendation("sell"), "cash")
+
+    def test_strong_sell_maps_to_cash(self):
+        """'strong sell' phải → cash."""
+        self.assertEqual(BacktestEngine.infer_position_recommendation("strong sell"), "cash")
+
+    def test_qing_cang_maps_to_cash(self):
+        """'清仓' (Chinese: clear position / liquidate) phải → cash."""
+        self.assertEqual(BacktestEngine.infer_position_recommendation("清仓"), "cash")
+
+    # ── infer_direction_expected ─────────────────────────────────────────
+
+    def test_jiancan_direction_is_down(self):
+        """'减仓' kỳ vọng giá giảm → direction = down."""
+        self.assertEqual(BacktestEngine.infer_direction_expected("减仓"), "down")
+
+    def test_giam_vi_the_direction_is_down(self):
+        """'giảm vị thế' kỳ vọng giá giảm → direction = down."""
+        self.assertEqual(BacktestEngine.infer_direction_expected("giảm vị thế"), "down")
+
+    def test_reduce_direction_is_down(self):
+        """'reduce' direction phải là down."""
+        self.assertEqual(BacktestEngine.infer_direction_expected("reduce"), "down")
+
+    # ── evaluate_single với partial_exit ─────────────────────────────────
+
+    def test_partial_exit_position_recommendation_in_result(self):
+        """evaluate_single với '减仓' phải trả về position_recommendation=partial_exit."""
+        cfg = EvaluationConfig(eval_window_days=3)
+        start = date(2026, 4, 1)
+        bars = self._bars(start, [104.0, 106.0, 108.0],
+                          highs=[105.0, 107.0, 109.0], lows=[103.0, 105.0, 107.0])
+        result = BacktestEngine.evaluate_single(
+            operation_advice="减仓",
+            analysis_date=start,
+            start_price=100.0,
+            forward_bars=bars,
+            stop_loss=None,
+            take_profit=None,
+            config=cfg,
+        )
+        self.assertEqual(result["position_recommendation"], "partial_exit")
+
+    def test_partial_exit_simulated_return_is_half_of_stock_return(self):
+        """partial_exit: simulated_return_pct = stock_return_pct * 0.5."""
+        cfg = EvaluationConfig(eval_window_days=3)
+        start = date(2026, 4, 1)
+        # stock +10% (end_close=110)
+        bars = self._bars(start, [104.0, 107.0, 110.0],
+                          highs=[105.0, 108.0, 111.0], lows=[103.0, 106.0, 109.0])
+        result = BacktestEngine.evaluate_single(
+            operation_advice="减仓",
+            analysis_date=start,
+            start_price=100.0,
+            forward_bars=bars,
+            stop_loss=None,
+            take_profit=None,
+            config=cfg,
+        )
+        self.assertAlmostEqual(result["stock_return_pct"], 10.0, places=1)
+        # simulated phải là 5% (50% của 10%)
+        self.assertIsNotNone(result["simulated_return_pct"])
+        self.assertAlmostEqual(result["simulated_return_pct"], 5.0, places=1)
+
+    def test_partial_exit_simulated_return_negative_when_stock_falls(self):
+        """partial_exit giữ nửa vị thế: thua cũng là 50% thua thực tế."""
+        cfg = EvaluationConfig(eval_window_days=3)
+        start = date(2026, 4, 1)
+        # stock -6%
+        bars = self._bars(start, [99.0, 97.0, 94.0],
+                          highs=[100.0, 98.0, 95.0], lows=[98.0, 96.0, 93.0])
+        result = BacktestEngine.evaluate_single(
+            operation_advice="减仓",
+            analysis_date=start,
+            start_price=100.0,
+            forward_bars=bars,
+            stop_loss=None,
+            take_profit=None,
+            config=cfg,
+        )
+        self.assertLess(result["stock_return_pct"], 0)
+        self.assertLess(result["simulated_return_pct"], 0)
+        self.assertAlmostEqual(
+            result["simulated_return_pct"],
+            result["stock_return_pct"] * 0.5,
+            places=1,
+        )
+
+    def test_partial_exit_stop_loss_triggers_half_loss(self):
+        """partial_exit: nếu stop-loss bị kích hoạt, tổn thất = (SL - entry)/entry * 50%."""
+        cfg = EvaluationConfig(eval_window_days=5)
+        start = date(2026, 4, 1)
+        # Ngày 1: xuống tới 90 (dưới SL=92), kích hoạt stop
+        bars = self._bars(start,
+                          closes=[95.0, 96.0, 97.0, 97.0, 98.0],
+                          highs=[96.0, 97.0, 98.0, 98.0, 99.0],
+                          lows=[89.0, 95.0, 96.0, 96.0, 97.0])
+        result = BacktestEngine.evaluate_single(
+            operation_advice="减仓",
+            analysis_date=start,
+            start_price=100.0,
+            forward_bars=bars,
+            stop_loss=92.0,
+            take_profit=115.0,
+            config=cfg,
+        )
+        self.assertEqual(result["position_recommendation"], "partial_exit")
+        self.assertTrue(result["hit_stop_loss"])
+        # simulated exit at stop_loss = 92; return = (92-100)/100 * 50% = -4%
+        self.assertAlmostEqual(result["simulated_return_pct"], -4.0, places=1)
+
+    def test_partial_exit_take_profit_triggers_half_gain(self):
+        """partial_exit: nếu take-profit bị kích hoạt, lời = (TP - entry)/entry * 50%."""
+        cfg = EvaluationConfig(eval_window_days=5)
+        start = date(2026, 4, 1)
+        # Ngày 1: lên đến 115 (>= TP=112), kích hoạt TP
+        bars = self._bars(start,
+                          closes=[108.0, 110.0, 111.0, 112.0, 113.0],
+                          highs=[115.0, 111.0, 112.0, 113.0, 114.0],
+                          lows=[107.0, 109.0, 110.0, 111.0, 112.0])
+        result = BacktestEngine.evaluate_single(
+            operation_advice="减仓",
+            analysis_date=start,
+            start_price=100.0,
+            forward_bars=bars,
+            stop_loss=90.0,
+            take_profit=112.0,
+            config=cfg,
+        )
+        self.assertEqual(result["position_recommendation"], "partial_exit")
+        self.assertTrue(result["hit_take_profit"])
+        # simulated exit at take_profit = 112; return = (112-100)/100 * 50% = 6%
+        self.assertAlmostEqual(result["simulated_return_pct"], 6.0, places=1)
+
+    def test_partial_exit_outcome_based_on_full_stock_return(self):
+        """outcome (win/loss) của partial_exit phải dựa trên stock_return_pct đầy đủ, không phải simulated."""
+        cfg = EvaluationConfig(eval_window_days=3, neutral_band_pct=2.0)
+        start = date(2026, 4, 1)
+        # stock giảm 5%, ta giảm vị thế (bearish call đúng → win)
+        bars = self._bars(start, [98.0, 96.0, 95.0],
+                          highs=[99.0, 97.0, 96.0], lows=[97.0, 95.0, 94.0])
+        result = BacktestEngine.evaluate_single(
+            operation_advice="减仓",
+            analysis_date=start,
+            start_price=100.0,
+            forward_bars=bars,
+            stop_loss=None,
+            take_profit=None,
+            config=cfg,
+        )
+        self.assertEqual(result["direction_expected"], "down")
+        self.assertEqual(result["outcome"], "win")  # stock giảm > 2% = thắng
+        self.assertTrue(result["direction_correct"])
+
+    def test_cash_simulated_return_still_zero(self):
+        """'卖出' vẫn → position=cash và simulated_return=0 (không thay đổi)."""
+        cfg = EvaluationConfig(eval_window_days=3)
+        start = date(2026, 4, 1)
+        bars = self._bars(start, [110.0, 112.0, 115.0])
+        result = BacktestEngine.evaluate_single(
+            operation_advice="卖出",
+            analysis_date=start,
+            start_price=100.0,
+            forward_bars=bars,
+            stop_loss=None,
+            take_profit=None,
+            config=cfg,
+        )
+        self.assertEqual(result["position_recommendation"], "cash")
+        self.assertEqual(result["simulated_return_pct"], 0.0)
+
+    # ── Summary: partial_exit_count ──────────────────────────────────────
+
+    def test_summary_counts_partial_exit_separately(self):
+        """compute_summary phải đếm partial_exit riêng, không lẫn với long/cash."""
+        from dataclasses import dataclass as dc
+
+        @dc
+        class FakeRowPartial:
+            eval_status: str = "completed"
+            position_recommendation: str = "partial_exit"
+            outcome: str = "win"
+            direction_correct: bool = True
+            stock_return_pct: float = -3.0
+            simulated_return_pct: float = -1.5
+            hit_stop_loss: bool = False
+            hit_take_profit: bool = False
+            first_hit: str = "neither"
+            first_hit_trading_days: None = None
+            operation_advice: str = "减仓"
+            alpha_pct: None = None
+            market_phase: None = None
+
+        rows = [
+            FakeRowPartial(),
+            FakeRowPartial(position_recommendation="long"),
+            FakeRowPartial(position_recommendation="cash"),
+        ]
+        summary = BacktestEngine.compute_summary(
+            results=rows,
+            scope="overall",
+            code="__overall__",
+            eval_window_days=3,
+            engine_version="v1",
+        )
+        self.assertIn("partial_exit_count", summary)
+        self.assertEqual(summary["partial_exit_count"], 1)
+        self.assertEqual(summary["long_count"], 1)
+        self.assertEqual(summary["cash_count"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

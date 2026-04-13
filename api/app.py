@@ -37,6 +37,14 @@ from src.services.system_config_service import SystemConfigService
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     """Initialize and release shared services for the app lifecycle."""
+    # Eagerly initialize DatabaseManager so the first request doesn't race with it
+    try:
+        from src.storage import DatabaseManager
+        DatabaseManager.get_instance()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error(f"DatabaseManager 启动初始化失败: {exc}", exc_info=True)
+
     app.state.system_config_service = SystemConfigService()
     try:
         yield
@@ -192,7 +200,10 @@ def create_app(static_dir: Optional[Path] = None) -> FastAPI:
                     content={"error": "not_found", "message": f"API endpoint /{full_path} not found"}
                 )
             
-            file_path = static_dir / full_path
+            file_path = (static_dir / full_path).resolve()
+            static_resolved = static_dir.resolve()
+            if not file_path.is_relative_to(static_resolved):
+                return JSONResponse(status_code=404, content={"error": "not_found"})
             if file_path.exists() and file_path.is_file():
                 # Issue #520: Explicitly resolve MIME type to avoid
                 # browsers rejecting JS modules served as text/plain.

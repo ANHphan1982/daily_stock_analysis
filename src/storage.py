@@ -296,8 +296,8 @@ class BacktestResult(Base):
     evaluated_at = Column(DateTime, default=datetime.now, index=True)
 
     # 建议快照（避免未来分析字段变化导致回测不可解释）
-    operation_advice = Column(String(20))
-    position_recommendation = Column(String(8))  # long/cash
+    operation_advice = Column(Text)
+    position_recommendation = Column(String(16))  # long/cash/partial_exit
 
     # 价格与收益
     start_price = Column(Float)
@@ -325,6 +325,13 @@ class BacktestResult(Base):
     simulated_exit_price = Column(Float)
     simulated_exit_reason = Column(String(24))  # stop_loss/take_profit/window_end/cash/ambiguous_stop_loss
     simulated_return_pct = Column(Float)
+
+    # 基准对比（Alpha vs VNINDEX）
+    benchmark_return_pct = Column(Float, nullable=True)  # VNINDEX return in same window
+    alpha_pct = Column(Float, nullable=True)              # stock_return - benchmark_return
+
+    # 市场阶段标签
+    market_phase = Column(String(16), nullable=True)  # BULL/BEAR/NEUTRAL/SECTOR_HOT
 
     __table_args__ = (
         UniqueConstraint(
@@ -357,6 +364,7 @@ class BacktestSummary(Base):
     insufficient_count = Column(Integer, default=0)
     long_count = Column(Integer, default=0)
     cash_count = Column(Integer, default=0)
+    partial_exit_count = Column(Integer, default=0)
 
     win_count = Column(Integer, default=0)
     loss_count = Column(Integer, default=0)
@@ -370,6 +378,7 @@ class BacktestSummary(Base):
     # 收益
     avg_stock_return_pct = Column(Float)
     avg_simulated_return_pct = Column(Float)
+    avg_alpha_pct = Column(Float, nullable=True)  # avg(stock_return - benchmark_return)
 
     # 目标价触发统计（仅 long 且配置止盈/止损时统计）
     stop_loss_trigger_rate = Column(Float)
@@ -380,6 +389,7 @@ class BacktestSummary(Base):
     # 诊断字段（JSON 字符串）
     advice_breakdown_json = Column(Text)
     diagnostics_json = Column(Text)
+    market_phase_breakdown_json = Column(Text)  # {phase: {total,win,loss,win_rate_pct}}
 
     __table_args__ = (
         UniqueConstraint(
